@@ -10,9 +10,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Courier New',Couri
 body{border-radius:24px;overflow:hidden}
 #c{position:fixed;inset:0;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:2}
-#hud-tl{position:absolute;top:18px;left:20px;font-size:9px;letter-spacing:3px;color:rgba(160,160,185,.35);line-height:1.9}
-#hud-tr{position:absolute;top:18px;right:20px;text-align:right;font-size:9px;letter-spacing:2px;color:rgba(160,160,185,.35);line-height:1.9}
-#hud-bl{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:2px;color:rgba(160,160,185,.18);white-space:nowrap}
+#hud-tl{position:absolute;top:18px;left:20px;font-size:11px;letter-spacing:3px;color:rgba(160,160,185,.55);line-height:1.9}
+#hud-tr{position:absolute;top:18px;right:20px;text-align:right;font-size:11px;letter-spacing:2px;color:rgba(160,160,185,.55);line-height:1.9}
+#hud-bl{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:2px;color:rgba(160,160,185,.45);white-space:nowrap}
 .overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#08080f;transition:opacity .4s}
 .overlay.gone{opacity:0;pointer-events:none}
 #s-title{font-size:clamp(13px,3vw,22px);font-weight:400;color:rgba(255,255,255,.7);letter-spacing:10px;margin-bottom:8px}
@@ -81,7 +81,7 @@ let l1Lasso = { active:false, path:[], result:null, resultT:0 };
 function l1Corner(i){
   // Fixed bottom-strip positions for 4 clusters
   const margin = 70, step = (W - margin*2) / 3;
-  return { cx: margin + i*step, cy: H - 26 };
+  return { cx: margin + i*step, cy: H - 42 };
 }
 
 function initL1(){
@@ -97,8 +97,8 @@ function initL1(){
   }
   for(const d of all){
     let x, y, tries = 0;
-    do { x = 60+Math.random()*(W-120); y = 100+Math.random()*(H-180); tries++; }
-    while(tries < 40 && l1Words.some(w => Math.hypot(w.x-x, w.y-y) < 56));
+    do { x = 70+Math.random()*(W-140); y = 110+Math.random()*(H-210); tries++; }
+    while(tries < 50 && l1Words.some(w => Math.hypot(w.x-x, w.y-y) < 80));
     l1Words.push({ ...d, x, y, vx:(Math.random()-.5)*.18, vy:(Math.random()-.5)*.18,
       captured:false, capturedAnim:0, tx:x, ty:y });
   }
@@ -117,16 +117,16 @@ function updateL1(dt){
     w.vy += (Math.random()-.5)*.022;
     w.vx *= .984; w.vy *= .984;
     w.x += w.vx*dt; w.y += w.vy*dt;
-    const pad = 46;
+    const pad = 64;
     if(w.x<pad){w.x=pad;w.vx*=-.6;} if(w.x>W-pad){w.x=W-pad;w.vx*=-.6;}
-    if(w.y<86){w.y=86;w.vy*=-.6;} if(w.y>H-36){w.y=H-36;w.vy*=-.6;}
+    if(w.y<100){w.y=100;w.vy*=-.6;} if(w.y>H-60){w.y=H-60;w.vy*=-.6;}
   }
   // gentle repulsion between free words
   const free = l1Words.filter(w => !w.captured);
   for(let i=0; i<free.length; i++) for(let j=i+1; j<free.length; j++){
     const a=free[i], b=free[j];
     const dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy);
-    if(d<50&&d>.5){ const f=(1-d/50)*.022; a.vx-=dx/d*f; a.vy-=dy/d*f; b.vx+=dx/d*f; b.vy+=dy/d*f; }
+    if(d<75&&d>.5){ const f=(1-d/75)*.028; a.vx-=dx/d*f; a.vy-=dy/d*f; b.vx+=dx/d*f; b.vy+=dy/d*f; }
   }
   if(l1Lasso.resultT>0) l1Lasso.resultT = Math.max(0, l1Lasso.resultT - dt*.028);
 }
@@ -141,9 +141,9 @@ function drawL1(){
     for(let fi=0; fi<l1Formed.length; fi++){
       const g = L1_GROUPS.find(g => g.id===l1Formed[fi]);
       const {cx,cy} = l1Corner(fi);
-      ctx.font='7px "Courier New",monospace';
-      ctx.fillStyle = g.col+'.38)';
-      ctx.fillText('['+g.id+']', cx, cy-14);
+      ctx.font='11px "Courier New",monospace';
+      ctx.fillStyle = g.col+'.55)';
+      ctx.fillText('['+g.id+']', cx, cy-20);
     }
   }
 
@@ -156,20 +156,20 @@ function drawL1(){
       ctx.lineTo(l1Lasso.path[0].x, l1Lasso.path[0].y);
     }
     const bad = l1Lasso.result?.type==='bad';
-    const a   = l1Lasso.active ? .38 : Math.max(0,l1Lasso.resultT)*.45;
+    const a   = l1Lasso.active ? .65 : Math.max(0,l1Lasso.resultT)*.7;
     ctx.strokeStyle = (bad?'rgba(255,80,80,':ACCENT)+a+')';
-    ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.lineWidth = 2.5; ctx.stroke();
   }
 
   // Words
   ctx.textAlign='center'; ctx.textBaseline='middle';
   for(const w of l1Words){
     const inL = l1Lasso.path.length>3 && !w.captured && pointInPoly(w.x,w.y,l1Lasso.path);
-    let alpha, fs=11;
-    if(w.captured)          { alpha = .15 + w.capturedAnim*.55; }
-    else if(inL)            { alpha = .7; fs=12; }
-    else if(w.group==='NOISE') { alpha = .14; }
-    else                    { alpha = .24; }
+    let alpha, fs=16;
+    if(w.captured)          { alpha = .3 + w.capturedAnim*.5; }
+    else if(inL)            { alpha = .95; fs=18; }
+    else if(w.group==='NOISE') { alpha = .28; }
+    else                    { alpha = .55; }
     ctx.font = `${fs}px "Courier New",monospace`;
     ctx.fillStyle = (w.captured||inL ? w.col : w.group==='NOISE' ? DIM : WHITE) + alpha + ')';
     ctx.fillText(w.text, w.x, w.y);
@@ -235,7 +235,7 @@ const L2_GROUPS = [
   { id:'ACT',   col:'rgba(160,255,180,', words:['call','tool','output','execute'] },
 ];
 const L2_NOISE  = ['the','but','and','with'];
-const THREAD_R  = 30;
+const THREAD_R  = 42;
 const L2_GOAL   = 3;
 
 let l2Words=[], l2Formed=[];
@@ -250,8 +250,8 @@ function initL2(){
   for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
   for(const d of all){
     let x,y,tries=0;
-    do{x=68+Math.random()*(W-136);y=95+Math.random()*(H-170);tries++;}
-    while(tries<40 && l2Words.some(w=>Math.hypot(w.x-x,w.y-y)<62));
+    do{x=72+Math.random()*(W-144);y=105+Math.random()*(H-200);tries++;}
+    while(tries<50 && l2Words.some(w=>Math.hypot(w.x-x,w.y-y)<80));
     l2Words.push({...d,x,y,vx:(Math.random()-.5)*.14,vy:(Math.random()-.5)*.14,
       formed:false,threaded:false,pingT:0});
   }
@@ -263,9 +263,9 @@ function updateL2(dt){
       w.vx+=(Math.random()-.5)*.016; w.vy+=(Math.random()-.5)*.016;
       w.vx*=.984; w.vy*=.984;
       w.x+=w.vx*dt; w.y+=w.vy*dt;
-      const pad=52;
+      const pad=66;
       if(w.x<pad){w.x=pad;w.vx*=-.5;} if(w.x>W-pad){w.x=W-pad;w.vx*=-.5;}
-      if(w.y<88){w.y=88;w.vy*=-.5;} if(w.y>H-36){w.y=H-36;w.vy*=-.5;}
+      if(w.y<100){w.y=100;w.vy*=-.5;} if(w.y>H-52){w.y=H-52;w.vy*=-.5;}
     }
     if(w.pingT>0) w.pingT=Math.max(0,w.pingT-dt*.04);
   }
@@ -274,7 +274,7 @@ function updateL2(dt){
   for(let i=0;i<free.length;i++) for(let j=i+1;j<free.length;j++){
     const a=free[i],b=free[j];
     const dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy);
-    if(d<50&&d>.5){const f=(1-d/50)*.016;a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f;}
+    if(d<78&&d>.5){const f=(1-d/78)*.022;a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f;}
   }
   // strand threading
   if(l2Strand.active && !l2Strand.broken && l2Strand.path.length>0){
@@ -334,9 +334,9 @@ function drawL2(){
     ctx.moveTo(l2Strand.path[0].x,l2Strand.path[0].y);
     for(let i=1;i<l2Strand.path.length;i++) ctx.lineTo(l2Strand.path[i].x,l2Strand.path[i].y);
     const bad = l2Strand.broken||(l2Strand.result==='bad'&&!l2Strand.active);
-    const a   = l2Strand.active?.3:Math.max(0,l2Strand.resultT)*.32;
+    const a   = l2Strand.active?.6:Math.max(0,l2Strand.resultT)*.65;
     ctx.strokeStyle=(bad?'rgba(255,80,80,':ACCENT)+a+')';
-    ctx.lineWidth=1.5; ctx.stroke();
+    ctx.lineWidth=2.5; ctx.stroke();
   }
   // connections along threaded beads
   if(l2Strand.threaded.length>1){
@@ -358,19 +358,19 @@ function drawL2(){
     }
     const cx=fw.reduce((s,w)=>s+w.x,0)/fw.length;
     const cy=fw.reduce((s,w)=>s+w.y,0)/fw.length;
-    ctx.font='7px "Courier New",monospace';ctx.fillStyle=g.col+'.38)';
-    ctx.fillText('['+gid+']',cx,cy-22);
+    ctx.font='11px "Courier New",monospace';ctx.fillStyle=g.col+'.55)';
+    ctx.fillText('['+gid+']',cx,cy-28);
   }
   // words
   ctx.textAlign='center';ctx.textBaseline='middle';
   for(const w of l2Words){
     const ping=Math.max(0,w.pingT);
-    let fs=11,alpha;
-    if(w.formed)          {fs=13;alpha=.72;}
-    else if(w.threaded)   {fs=13;alpha=.65;}
-    else if(ping>.2)      {alpha=.12+ping*.38;}
-    else if(w.group==='NOISE'){alpha=.11;}
-    else                  {alpha=.2;}
+    let fs=16,alpha;
+    if(w.formed)          {fs=18;alpha=.85;}
+    else if(w.threaded)   {fs=18;alpha=.8;}
+    else if(ping>.2)      {fs=17;alpha=.35+ping*.45;}
+    else if(w.group==='NOISE'){alpha=.25;}
+    else                  {alpha=.5;}
     ctx.font=`${fs}px "Courier New",monospace`;
     ctx.fillStyle=((w.formed||w.threaded||ping>.2)?w.col:DIM)+alpha+')';
     ctx.fillText(w.text,w.x,w.y);
