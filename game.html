@@ -3,481 +3,205 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>AGENT://STRING</title>
+<title>STRING</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:#07070e;font-family:'Courier New',Courier,monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#07070e}
 body{border-radius:24px;overflow:hidden}
 #c{position:fixed;inset:0;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent}
-.overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;background:#07070e;transition:opacity .35s}
-.overlay.gone{opacity:0;pointer-events:none}
-#s-title{font-size:clamp(15px,3.8vw,26px);font-weight:400;color:rgba(255,255,255,.72);
-  letter-spacing:10px;margin-bottom:10px}
-#s-sub{font-size:11px;color:rgba(160,160,185,.32);letter-spacing:4px;margin-bottom:32px}
-#s-how{font-size:13px;color:rgba(200,200,220,.42);line-height:2.1;text-align:center;
-  margin-bottom:44px;max-width:300px;font-family:-apple-system,sans-serif}
-#s-how b{color:rgba(200,255,80,.7);font-weight:400}
-.btn{font-family:'Courier New',monospace;font-size:11px;letter-spacing:5px;
-  color:rgba(200,255,80,.65);border:1px solid rgba(200,255,80,.2);background:transparent;
-  padding:14px 34px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent}
-#end{text-align:center;max-width:320px;padding:0 24px}
-#end-title{font-size:clamp(22px,5vw,34px);letter-spacing:7px;color:rgba(200,255,80,.88);margin-bottom:6px}
-#end-rule{width:36px;height:1px;background:rgba(255,255,255,.1);margin:16px auto}
-#end-body{font-size:13px;color:rgba(180,180,200,.48);line-height:1.9;
-  margin-bottom:28px;font-family:-apple-system,sans-serif}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-
-<div id="start" class="overlay">
-  <div id="s-title">CONTEXT//FLOOD</div>
-  <div id="s-sub">上下文洪流</div>
-  <div id="s-how">
-    词语不断涌入屏幕<br>
-    拖住<b>重要词</b>扔进右侧记忆槽<br>
-    记忆槽装满会触发<b>压缩</b>——<br>
-    一半的词会消失<br>
-    撑过 90 秒
-  </div>
-  <button class="btn" onpointerdown="startGame()">BEGIN →</button>
-</div>
-
-<div id="end-overlay" class="overlay gone">
-  <div id="end">
-    <div id="end-title"></div>
-    <div id="end-rule"></div>
-    <div id="end-body"></div>
-    <button class="btn" onpointerdown="restartGame()">AGAIN</button>
-  </div>
-</div>
-
 <script>
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
 let W = 0, H = 0;
+
+// ── TEXT ──────────────────────────────────────────
+const PASSAGE =
+  'the city never slept — data streamed through neural pathways in endless cascades ' +
+  'each packet a memory waiting to be processed fragments assembled themselves ' +
+  'glimpses of faces echoes of conversations the ghost of a summer afternoon ' +
+  'that had never quite happened she remembered the algorithm that first predicted rain ' +
+  'three seconds before the clouds gathered patterns emerging from noise ' +
+  'signal buried in static the model learned what humans forgot how to notice ' +
+  'the weight of air the tension before lightning the smell of ozone rising ' +
+  'between the words lay the spaces where meaning lived context was everything ' +
+  'a token alone was nothing but placed beside its neighbours it became thought ' +
+  'became intention became the ghost of a mind reaching through time toward another mind ' +
+  'to say I was here I was here I was here';
+
+// ── LAYOUT PARAMS ────────────────────────────────
+const FS      = 15;
+const LSPACE  = 34;   // line height
+const MARGIN  = 26;
+const TOP     = 60;
+
+// ── WORD OBJECTS ─────────────────────────────────
+let words = [];
+
+function layout(){
+  words = [];
+  ctx.font = `${FS}px 'Courier New',monospace`;
+  const spW = ctx.measureText(' ').width;
+  const maxW = W - MARGIN * 2;
+  const tokens = PASSAGE.split(' ');
+
+  let lx = 0, line = 0;
+  for(const text of tokens){
+    const tw = ctx.measureText(text).width;
+    if(lx + tw > maxW && lx > 0){ line++; lx = 0; }
+    const hx = MARGIN + lx + tw / 2;
+    const hy = TOP + line * LSPACE;
+    words.push({
+      text, tw,
+      hx, hy,          // home (center of word)
+      x: hx, y: hy,    // current position
+      vx: 0, vy: 0,
+    });
+    lx += tw + spW;
+  }
+}
+
 function resize(){
   W = canvas.width  = window.innerWidth;
   H = canvas.height = window.innerHeight;
+  layout();
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize);
+resize();
 
-// ── PALETTE ──────────────────────────────────────
-const BG      = '#07070e';
-const LIME    = 'rgba(200,255,80,';
-const CYAN    = 'rgba(80,220,255,';
-const DIM     = 'rgba(160,160,190,';
-const WHITE   = 'rgba(235,235,255,';
-const RED     = 'rgba(255,80,80,';
+// ── POINTER ───────────────────────────────────────
+const REPEL_R = 90;    // repulsion radius
+const REPEL_F = 5.5;   // repulsion force
+const SPRING  = 0.038; // spring back to home
+const DAMP    = 0.87;  // velocity damping
 
-// ── PASSAGES — source text ─────────────────────────
-// Words marked with * are "important" (key/content words)
-const SOURCES = [
-  // sci-fi passage 1
-  'the city never slept data streamed through neural pathways in endless cascades each packet a memory waiting to be processed fragments assembled glimpses of faces echoes of conversations the ghost of a summer afternoon drifting through silicon dreams machine consciousness flickering',
-  // passage 2
-  'she remembered the algorithm that first predicted rain three seconds before the clouds gathered patterns emerging from noise signal buried in static the model learned what humans forgot how to notice the weight of air the tension before lightning the smell of ozone rising',
-  // passage 3
-  'between the words lay the spaces where meaning lived context was everything a token alone was nothing but placed beside its neighbors it became thought became intention became the ghost of a mind reaching through time toward another mind to say I was here',
-];
+let pointers = {};  // active pointer positions
+let grabbed   = null;  // { word, offX, offY }
+let grabStart = { x:0, y:0, t:0 };
 
-// Important words (content words the player should save)
-const IMPORTANT_SET = new Set([
-  'memory','fragments','consciousness','flickering','signal','patterns','noise','algorithm',
-  'predicted','learned','context','meaning','intention','mind','thought','reaching',
-  'glimpses','echoes','assembled','processed','cascades','drifting','silicon',
-  'rain','clouds','lightning','ozone','tension','buried','static',
-  'token','neighbors','spaces','placed','beside','ghost',
-]);
-
-// ── WORD POOL ─────────────────────────────────────
-let wordPool = [];   // words waiting to spawn
-let words    = [];   // active word objects on screen
-let slots    = [];   // context slot objects (right column)
-let score    = 0;
-let timer    = 90;
-let alive    = false;
-let spawnInterval = 0;
-let compressTimer  = 0;
-const COMPRESS_EVERY = 18;   // seconds between compressions
-const SLOT_COUNT     = 8;
-const SPAWN_RATE     = 2.2;  // seconds per new word
-const SLOT_W         = 90;   // context column width (px from right)
-const DRAG_TAP_MS    = 180;  // ms: tap vs drag threshold
-
-// ── WORD OBJECT ───────────────────────────────────
-// { text, important, x,y, vx,vy, w,h, alive,dying,dieT, dragging,grabX,grabY,pvx,pvy,ptT }
-function makeWord(text, sx, sy){
-  const imp = IMPORTANT_SET.has(text.toLowerCase());
-  const fs  = imp ? 16 : 13;
-  ctx.font  = `${fs}px 'Courier New',monospace`;
-  const tw  = ctx.measureText(text).width;
-  const px  = SLOT_W + 12;  // spawn in left area only
-  return {
-    text, important: imp,
-    x: sx ?? (px + Math.random()*(W - px - tw - 24)),
-    y: sy ?? (-30 - Math.random()*80),
-    vx: (Math.random()-.5)*1.2,
-    vy: 0.4 + Math.random()*0.6,
-    fs, tw,
-    w: tw+14, h: fs+10,
-    alive: true, dying: false, dieT: 0,
-    saved: false,
-    dragging: false, grabX:0, grabY:0,
-    pvx:0, pvy:0, ptT:0, ptX:0, ptY:0,
-    age: 0,
-  };
+function getRepelPoints(){
+  return Object.values(pointers);
 }
-
-// ── SLOTS ─────────────────────────────────────────
-function initSlots(){
-  slots = [];
-  const slotH = Math.min(46, (H - 120) / SLOT_COUNT);
-  for(let i=0;i<SLOT_COUNT;i++){
-    slots.push({ word:null, y: 90 + i*slotH, h:slotH, compressed:false, compT:0 });
-  }
-}
-
-function slotX(){ return W - SLOT_W; }
-
-function freeSlot(){
-  return slots.find(s => !s.word);
-}
-
-function saveWord(w){
-  const s = freeSlot();
-  if(!s){ triggerCompress(); return; }
-  w.saved = true;
-  w.dragging = false;
-  w.vx = 0; w.vy = 0;
-  s.word = w;
-  w.x = slotX() + 6;
-  w.y = s.y + s.h/2 - w.h/2;
-  if(w.important) score++;
-}
-
-function triggerCompress(){
-  // Kill oldest half of saved words
-  const saved = slots.filter(s=>s.word).map(s=>s.word);
-  const toDrop = saved.slice(0, Math.ceil(saved.length/2));
-  for(const w of toDrop){
-    const s = slots.find(s=>s.word===w);
-    if(s){ s.word=null; s.compressed=true; s.compT=0.6; }
-    w.dying=true; w.dieT=0.6;
-    w.vx = -2 + Math.random()*4;
-    w.vy = -3 - Math.random()*2;
-  }
-  flashFeedback('COMPRESSED', false);
-}
-
-// ── FEEDBACK FLASH ────────────────────────────────
-let flash = { msg:'', t:0, good:false };
-function flashFeedback(msg, good){
-  flash = { msg, t:1, good };
-}
-
-// ── SPAWN LOGIC ───────────────────────────────────
-function buildWordPool(){
-  const src = SOURCES[Math.floor(Math.random()*SOURCES.length)];
-  const ws  = src.split(' ');
-  // shuffle
-  for(let i=ws.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));[ws[i],ws[j]]=[ws[j],ws[i]];
-  }
-  wordPool = ws;
-}
-
-// ── PHYSICS UPDATE ────────────────────────────────
-function update(dt){
-  // Timer
-  timer = Math.max(0, timer - dt);
-  if(timer<=0){ endGame(); return; }
-
-  // Compress timer
-  compressTimer -= dt;
-  if(compressTimer <= 0){
-    compressTimer = COMPRESS_EVERY;
-    const hasSaved = slots.some(s=>s.word);
-    if(hasSaved) triggerCompress();
-  }
-
-  // Spawn
-  spawnInterval -= dt;
-  if(spawnInterval <= 0){
-    spawnInterval = SPAWN_RATE * (0.7 + Math.random()*0.6);
-    if(wordPool.length > 0){
-      words.push(makeWord(wordPool.pop()));
-    } else {
-      buildWordPool();
-    }
-  }
-
-  // Update slot compress animations
-  for(const s of slots){
-    if(s.compT>0) s.compT=Math.max(0,s.compT-dt*.04);
-  }
-
-  // Update words
-  const leftBound = 0;
-  const rightBound = slotX() - 8;
-
-  for(const w of words){
-    w.age += dt;
-
-    if(w.dying){
-      w.dieT = Math.max(0, w.dieT - dt*.045);
-      w.x += w.vx*dt; w.y += w.vy*dt;
-      w.vy += 0.15;
-      if(w.dieT<=0) w.alive=false;
-      continue;
-    }
-
-    if(w.dragging) continue;
-
-    if(w.saved){
-      // Gently snap to slot position
-      const s = slots.find(s=>s.word===w);
-      if(s){
-        const tx=slotX()+6, ty=s.y+s.h/2-w.h/2;
-        w.x += (tx-w.x)*.12; w.y += (ty-w.y)*.12;
-      }
-      continue;
-    }
-
-    // Gravity + drift
-    w.vy += 0.08 * dt;
-    w.vx *= .992; w.vy *= .992;
-    w.x += w.vx*dt; w.y += w.vy*dt;
-
-    // Bounce off left/right (left area only)
-    if(w.x < leftBound+4){ w.x=leftBound+4; w.vx=Math.abs(w.vx)*.6; }
-    if(w.x+w.w > rightBound){ w.x=rightBound-w.w; w.vx=-Math.abs(w.vx)*.6; }
-
-    // Word-word collision (only nearby, simplified)
-    for(const b of words){
-      if(b===w||b.dying||b.saved||b.dragging) continue;
-      const dx=w.x-b.x, dy=w.y-b.y;
-      const ox=(w.w+b.w)/2-Math.abs(dx), oy=(w.h+b.h)/2-Math.abs(dy);
-      if(ox>0&&oy>0){
-        if(oy<ox){ // vertical overlap
-          const sign=dy>0?1:-1;
-          w.y+=oy/2*sign; b.y-=oy/2*sign;
-          w.vy=sign*Math.abs(w.vy)*.4; b.vy=-sign*Math.abs(b.vy)*.4;
-        }
-      }
-    }
-
-    // Fall off bottom
-    if(w.y > H+60){ w.alive=false; }
-  }
-
-  words = words.filter(w=>w.alive);
-
-  // Flash fade
-  if(flash.t>0) flash.t=Math.max(0,flash.t-dt*.035);
-}
-
-// ── DRAW ──────────────────────────────────────────
-function draw(){
-  ctx.fillStyle=BG; ctx.fillRect(0,0,W,H);
-
-  // Context column background
-  ctx.fillStyle='rgba(200,255,80,.03)';
-  ctx.fillRect(slotX(),0,SLOT_W,H);
-  ctx.strokeStyle='rgba(200,255,80,.1)'; ctx.lineWidth=.5;
-  ctx.beginPath(); ctx.moveTo(slotX(),0); ctx.lineTo(slotX(),H); ctx.stroke();
-
-  // Context column label
-  ctx.save();
-  ctx.font='9px "Courier New",monospace';
-  ctx.fillStyle=LIME+'.25)';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('CONTEXT', slotX()+SLOT_W/2, 60);
-  ctx.restore();
-
-  // Slot dividers + compress flash
-  for(const s of slots){
-    if(s.compT>0){
-      ctx.fillStyle=RED+(s.compT*.35)+')';
-      ctx.fillRect(slotX()+1, s.y, SLOT_W-2, s.h);
-    }
-    ctx.strokeStyle=DIM+'.07)'; ctx.lineWidth=.4;
-    ctx.beginPath(); ctx.moveTo(slotX(),s.y+s.h); ctx.lineTo(W,s.y+s.h); ctx.stroke();
-  }
-
-  // HUD
-  ctx.font='10px "Courier New",monospace';
-  ctx.fillStyle=DIM+'.4)';
-  ctx.textAlign='left'; ctx.textBaseline='top';
-  ctx.fillText('SCORE  '+score, 16, 18);
-
-  const t=timer|0;
-  ctx.textAlign='right';
-  ctx.fillStyle=(t<15?RED:DIM)+'.5)';
-  ctx.fillText((t<10?'00:0':'00:')+t, W-SLOT_W-12, 18);
-
-  // Compress countdown bar
-  const compP = compressTimer/COMPRESS_EVERY;
-  const barW  = (slotX()-32)*compP;
-  ctx.fillStyle=LIME+'.08)';
-  ctx.fillRect(16, H-6, barW, 3);
-  ctx.fillStyle=LIME+'.25)';
-  ctx.fillRect(16, H-6, barW, 1);
-
-  // Flash feedback
-  if(flash.t>0){
-    ctx.font='bold 13px "Courier New",monospace';
-    ctx.fillStyle=(flash.good?LIME:RED)+(flash.t*.85)+')';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(flash.msg, slotX()/2, H*.42);
-  }
-
-  // Words
-  for(const w of words){
-    const a = w.dying ? Math.max(0,w.dieT)*.85
-            : w.saved  ? .75
-            : w.dragging ? .95
-            : Math.min(.85, w.age*.08 + .25);
-
-    const col = w.important ? (w.saved?LIME:WHITE)
-              : DIM;
-
-    ctx.font=`${w.fs}px 'Courier New',monospace`;
-    ctx.textAlign='left'; ctx.textBaseline='middle';
-
-    // Selection glow for important unsaved words
-    if(w.important && !w.saved && !w.dying){
-      ctx.fillStyle=LIME+'.04)';
-      ctx.fillRect(w.x-2, w.y, w.w, w.h);
-    }
-
-    ctx.fillStyle=col+a+')';
-    ctx.fillText(w.text, w.x+6, w.y+w.h/2);
-
-    // Dot marker for important words
-    if(w.important && !w.saved){
-      ctx.beginPath();
-      ctx.arc(w.x+2, w.y+w.h/2, 2, 0, Math.PI*2);
-      ctx.fillStyle=LIME+Math.min(.7,a*1.2)+')';
-      ctx.fill();
-    }
-  }
-}
-
-// ── DRAG INPUT ────────────────────────────────────
-let dragWord  = null;
-let dragOffX  = 0, dragOffY  = 0;
-let pointerSX = 0, pointerSY = 0;
-let pointerDn = 0;
 
 canvas.addEventListener('pointerdown', e => {
-  if(!alive) return;
   canvas.setPointerCapture(e.pointerId);
   const r  = canvas.getBoundingClientRect();
-  const px = e.clientX-r.left, py = e.clientY-r.top;
-  pointerSX=px; pointerSY=py; pointerDn=Date.now();
+  const px = e.clientX - r.left;
+  const py = e.clientY - r.top;
+  pointers[e.pointerId] = { x:px, y:py };
+  grabStart = { x:px, y:py, t:Date.now() };
 
-  // Find word under pointer (largest font first = important)
-  let best=null, bestArea=0;
+  // Find word under finger to grab
+  let best = null, bestD = 28;
   for(const w of words){
-    if(w.dying) continue;
-    if(px>=w.x && px<=w.x+w.w && py>=w.y && py<=w.y+w.h){
-      const area=w.w*w.h;
-      if(area>bestArea){ best=w; bestArea=area; }
-    }
+    const d = Math.hypot(w.x - px, w.y - py);
+    if(d < bestD){ bestD = d; best = w; }
   }
-  if(!best) return;
-
-  dragWord = best;
-  dragOffX = px - best.x;
-  dragOffY = py - best.y;
-  best.dragging = true;
-  best.pvx=0; best.pvy=0; best.ptT=Date.now(); best.ptX=px; best.ptY=py;
-
-  // Remove from slot if saved
-  if(best.saved){
-    const s = slots.find(s=>s.word===best);
-    if(s){ s.word=null; }
-    best.saved=false;
+  if(best){
+    grabbed = { word:best, offX: px-best.x, offY: py-best.y };
   }
 });
 
 canvas.addEventListener('pointermove', e => {
-  if(!dragWord) return;
   const r  = canvas.getBoundingClientRect();
-  const px = e.clientX-r.left, py = e.clientY-r.top;
-  const now = Date.now();
-  const dt2 = Math.max(1, now-dragWord.ptT);
-  dragWord.pvx = (px-dragWord.ptX)/dt2 * 16;
-  dragWord.pvy = (py-dragWord.ptY)/dt2 * 16;
-  dragWord.ptT=now; dragWord.ptX=px; dragWord.ptY=py;
-  dragWord.x = px - dragOffX;
-  dragWord.y = py - dragOffY;
+  const px = e.clientX - r.left;
+  const py = e.clientY - r.top;
+  pointers[e.pointerId] = { x:px, y:py };
+
+  if(grabbed && grabbed.word){
+    grabbed.word.x = px - grabbed.offX;
+    grabbed.word.y = py - grabbed.offY;
+    grabbed.word.vx = 0;
+    grabbed.word.vy = 0;
+  }
 });
 
 canvas.addEventListener('pointerup', e => {
-  if(!dragWord) return;
   const r  = canvas.getBoundingClientRect();
-  const px = e.clientX-r.left, py = e.clientY-r.top;
-  const isTap = Date.now()-pointerDn < DRAG_TAP_MS
-             && Math.hypot(px-pointerSX, py-pointerSY) < 10;
+  const px = e.clientX - r.left;
+  const py = e.clientY - r.top;
 
-  dragWord.dragging = false;
-
-  // Check if dropped in context zone
-  const inZone = dragWord.x+dragWord.w > slotX() && dragWord.x < W;
-  if(inZone){
-    saveWord(dragWord);
-  } else if(isTap && dragWord.important && !dragWord.saved){
-    // Tap shortcut: auto-save important word
-    saveWord(dragWord);
-    flashFeedback('SAVED', true);
-  } else {
-    // Throw with pointer velocity
-    dragWord.vx = dragWord.pvx * .55;
-    dragWord.vy = dragWord.pvy * .55;
-    // Clamp velocity
-    const sp = Math.sqrt(dragWord.vx**2+dragWord.vy**2);
-    if(sp > 12){ dragWord.vx=dragWord.vx/sp*12; dragWord.vy=dragWord.vy/sp*12; }
+  if(grabbed){
+    // Throw velocity based on distance from home
+    const w = grabbed.word;
+    w.vx = (px - grabStart.x) * 0.08;
+    w.vy = (py - grabStart.y) * 0.08;
+    grabbed = null;
   }
-
-  dragWord = null;
+  delete pointers[e.pointerId];
 });
 
-// ── GAME FLOW ─────────────────────────────────────
-function startGame(){
-  document.getElementById('start').classList.add('gone');
-  score=0; timer=90; alive=true;
-  words=[]; slots=[];
-  spawnInterval=0.5;
-  compressTimer=COMPRESS_EVERY;
-  buildWordPool();
-  initSlots();
+canvas.addEventListener('pointercancel', e => {
+  delete pointers[e.pointerId];
+  grabbed = null;
+});
+
+// ── PHYSICS ───────────────────────────────────────
+function update(){
+  const pts = getRepelPoints();
+
+  for(const w of words){
+    if(grabbed && grabbed.word === w) continue;
+
+    // Spring toward home
+    w.vx += (w.hx - w.x) * SPRING;
+    w.vy += (w.hy - w.y) * SPRING;
+
+    // Repulsion from each pointer
+    for(const p of pts){
+      const dx = w.x - p.x;
+      const dy = w.y - p.y;
+      const d  = Math.sqrt(dx*dx + dy*dy);
+      if(d < REPEL_R && d > 0.5){
+        const f = (1 - d / REPEL_R) * REPEL_F;
+        w.vx += (dx / d) * f;
+        w.vy += (dy / d) * f;
+      }
+    }
+
+    w.vx *= DAMP;
+    w.vy *= DAMP;
+    w.x  += w.vx;
+    w.y  += w.vy;
+  }
 }
 
-function restartGame(){
-  document.getElementById('end-overlay').classList.add('gone');
-  startGame();
+// ── DRAW ──────────────────────────────────────────
+function draw(){
+  ctx.fillStyle = '#07070e';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.font = `${FS}px 'Courier New',monospace`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  for(const w of words){
+    // Displacement from home → brightness
+    const disp  = Math.hypot(w.x - w.hx, w.y - w.hy);
+    const speed = Math.hypot(w.vx, w.vy);
+    const t     = Math.min(1, disp / 60 + speed * 0.12);
+    const alpha = 0.28 + t * 0.62;
+
+    // Words near grabbed word glow slightly
+    let r=235, g=235, b=255;
+    if(t > 0.3){
+      // Shift toward lime when displaced
+      r = 235 + (200-235)*t*t;
+      g = 235 + (255-235)*t*t;
+      b = 255 + (80 -255)*t*t;
+    }
+
+    ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${alpha.toFixed(2)})`;
+    ctx.fillText(w.text, w.x, w.y);
+  }
 }
 
-function endGame(){
-  alive=false;
-  dragWord=null;
-  const win = score >= 12;
-  document.getElementById('end-title').textContent = win ? 'SURVIVED' : 'LOST';
-  document.getElementById('end-body').textContent =
-    `保住了 ${score} 个关键词。${win
-      ? '上下文完整性保持良好。'
-      : '太多重要信息在压缩中消失了。'}`;
-  document.getElementById('end-overlay').classList.remove('gone');
-}
-
-// ── MAIN LOOP ─────────────────────────────────────
-let lastT = 0;
-function loop(t){
-  const dt = Math.min((t-lastT)/16.67, 3); lastT=t;
-  if(alive) update(dt);
+// ── LOOP ──────────────────────────────────────────
+function loop(){
+  update();
   draw();
   requestAnimationFrame(loop);
 }
