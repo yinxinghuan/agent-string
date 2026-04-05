@@ -9,20 +9,33 @@
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Courier New',Courier,monospace;background:#08080f}
 body{border-radius:24px;overflow:hidden}
 #c{position:fixed;inset:0;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent}
+/* HUD */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:2}
 #hud-tl{position:absolute;top:18px;left:20px;font-size:11px;letter-spacing:3px;color:rgba(160,160,185,.55);line-height:1.9}
 #hud-tr{position:absolute;top:18px;right:20px;text-align:right;font-size:11px;letter-spacing:2px;color:rgba(160,160,185,.55);line-height:1.9}
-#hud-bl{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:2px;color:rgba(160,160,185,.45);white-space:nowrap}
-.overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#08080f;transition:opacity .4s}
+#hud-bl{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:2px;color:rgba(200,255,80,.45);white-space:nowrap;pointer-events:auto}
+/* Submit button — only shows when 4 selected */
+#btn-submit{display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+  font-family:'Courier New',monospace;font-size:12px;letter-spacing:5px;
+  color:rgba(200,255,80,1);border:1px solid rgba(200,255,80,.5);background:transparent;
+  padding:14px 36px;z-index:5;touch-action:none;-webkit-tap-highlight-color:transparent;outline:none}
+/* Overlays */
+.overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:#08080f;transition:opacity .4s}
 .overlay.gone{opacity:0;pointer-events:none}
-#s-title{font-size:clamp(13px,3vw,22px);font-weight:400;color:rgba(255,255,255,.7);letter-spacing:10px;margin-bottom:8px}
-#s-sub{font-size:10px;color:rgba(160,160,185,.3);letter-spacing:4px;margin-bottom:56px}
-.btn{font-family:'Courier New',monospace;font-size:10px;letter-spacing:5px;color:rgba(200,255,80,.6);border:1px solid rgba(200,255,80,.18);background:transparent;padding:12px 28px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;outline:none}
-#cmp{text-align:center;max-width:360px;padding:0 24px}
-#cmp-kw{font-size:clamp(18px,4.5vw,30px);font-weight:400;letter-spacing:6px;color:rgba(200,255,80,.85);margin-bottom:6px}
-#cmp-rule{width:36px;height:1px;background:rgba(255,255,255,.1);margin:14px auto}
-#cmp-body{font-size:12px;color:rgba(180,180,205,.5);line-height:1.9;margin-bottom:24px;font-family:-apple-system,sans-serif}
-#cmp-btns{display:flex;gap:12px;justify-content:center}
+#s-title{font-size:clamp(14px,3.5vw,24px);font-weight:400;color:rgba(255,255,255,.75);letter-spacing:10px;margin-bottom:10px}
+#s-sub{font-size:11px;color:rgba(160,160,185,.35);letter-spacing:4px;margin-bottom:12px}
+#s-rule{width:36px;height:1px;background:rgba(255,255,255,.08);margin:20px auto 32px}
+#s-how{font-size:12px;color:rgba(160,160,185,.4);line-height:2;text-align:center;margin-bottom:44px;font-family:-apple-system,sans-serif;letter-spacing:.5px}
+.btn{font-family:'Courier New',monospace;font-size:11px;letter-spacing:5px;
+  color:rgba(200,255,80,.65);border:1px solid rgba(200,255,80,.2);background:transparent;
+  padding:14px 32px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;outline:none}
+/* End overlay */
+#cmp{text-align:center;max-width:340px;padding:0 24px}
+#cmp-kw{font-size:clamp(20px,5vw,32px);font-weight:400;letter-spacing:7px;color:rgba(200,255,80,.9);margin-bottom:6px}
+#cmp-rule{width:36px;height:1px;background:rgba(255,255,255,.1);margin:16px auto}
+#cmp-body{font-size:13px;color:rgba(180,180,205,.5);line-height:1.9;margin-bottom:28px;font-family:-apple-system,sans-serif}
+#cmp-btns{display:flex;gap:14px;justify-content:center}
 </style>
 </head>
 <body>
@@ -32,24 +45,37 @@ body{border-radius:24px;overflow:hidden}
   <div id="hud-tr"></div>
   <div id="hud-bl"></div>
 </div>
+<button id="btn-submit" onpointerdown="submitGuess()">SUBMIT ▶</button>
+
+<!-- START -->
 <div id="start" class="overlay">
   <div id="s-title">AGENT :// STRING</div>
   <div id="s-sub">语义空间实验</div>
-  <button class="btn" onpointerdown="startL1()">ENTER →</button>
+  <div id="s-rule"></div>
+  <div id="s-how">
+    词语漂浮在空间中<br>
+    找出 4 个语义相关的词<br>
+    点击选中，凑够 4 个后提交<br>
+    猜对：它们结晶成簇<br>
+    猜错：扣一条命（共 4 条）
+  </div>
+  <button class="btn" onpointerdown="startGame()">ENTER →</button>
 </div>
+
+<!-- END -->
 <div id="cmp-overlay" class="overlay gone">
   <div id="cmp">
     <div id="cmp-kw"></div>
     <div id="cmp-rule"></div>
     <div id="cmp-body"></div>
     <div id="cmp-btns">
-      <button class="btn" onpointerdown="retryLevel()">RETRY</button>
-      <button class="btn" id="btn-next" style="display:none" onpointerdown="nextLevel()">NEXT →</button>
+      <button class="btn" onpointerdown="restartGame()">AGAIN</button>
     </div>
   </div>
 </div>
+
 <script>
-// ─── CANVAS ────────────────────────────────────────
+// ── CANVAS ────────────────────────────────────────
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
 let W = 0, H = 0;
@@ -60,415 +86,300 @@ const ACCENT = 'rgba(200,255,80,';
 const DIM    = 'rgba(160,160,185,';
 const WHITE  = 'rgba(255,255,255,';
 
-// ─── GAME STATE ────────────────────────────────────
-let level = 0, alive = false, timer = 0, timerOn = false;
-
-// ─── LEVEL 1 — CLUSTER ────────────────────────────
-// Draw a lasso to encircle semantically related words.
-// ≥3 same-group words + ≤1 noise inside = cluster formed.
-// ──────────────────────────────────────────────────
-const L1_GROUPS = [
-  { id:'SENSE', col:'rgba(200,255,80,',  words:['visual','audio','signal','sensor','detect'] },
-  { id:'THINK', col:'rgba(255,160,80,',  words:['reason','infer','plan','logic','chain'] },
-  { id:'STORE', col:'rgba(80,200,255,',  words:['token','embed','buffer','vector','memory'] },
-  { id:'ACT',   col:'rgba(160,255,180,', words:['call','tool','output','write','execute'] },
+// ── WORD DATA — two rounds ─────────────────────────
+// Round 1: clear groupings
+const ROUND1 = [
+  { id:'SENSE',  col:'rgba(200,255,80,',  label:'感知',  words:['visual','audio','signal','sensor'] },
+  { id:'THINK',  col:'rgba(255,160,80,',  label:'推理',  words:['reason','infer','plan','logic'] },
+  { id:'STORE',  col:'rgba(80,200,255,',  label:'记忆',  words:['token','embed','buffer','vector'] },
+  { id:'ACT',    col:'rgba(160,255,180,', label:'行动',  words:['call','tool','output','execute'] },
 ];
-const L1_NOISE = ['the','and','but','with'];
+// Round 2: trickier
+const ROUND2 = [
+  { id:'SENSE',  col:'rgba(200,255,80,',  label:'感知',  words:['detect','encode','scan','observe'] },
+  { id:'THINK',  col:'rgba(255,160,80,',  label:'推理',  words:['chain','reflect','decide','goal'] },
+  { id:'STORE',  col:'rgba(80,200,255,',  label:'记忆',  words:['context','window','memory','store'] },
+  { id:'ACT',    col:'rgba(160,255,180,', label:'行动',  words:['fetch','write','search','respond'] },
+];
 
-let l1Words = [], l1Formed = [];
-let l1Lasso = { active:false, path:[], result:null, resultT:0 };
+// ── GAME STATE ────────────────────────────────────
+let words    = [];  // word objects
+let lives    = 4;
+let formed   = 0;   // groups completed
+let selected = [];  // selected word objects (max 4)
+let alive    = false;
+let round    = 1;
+let shaking  = [];  // words currently shaking
+let feedback = { msg:'', t:0, good:false };
 
-function l1Corner(i){
-  // Fixed bottom-strip positions for 4 clusters
-  const margin = 70, step = (W - margin*2) / 3;
-  return { cx: margin + i*step, cy: H - 42 };
-}
+// ── WORD OBJECT ───────────────────────────────────
+// { text, group, col, label, x, y, vx, vy, selected, formed, formT, shakeT, shakeOff }
 
-function initL1(){
-  l1Words = []; l1Formed = [];
-  l1Lasso = { active:false, path:[], result:null, resultT:0 };
-
-  const all = [];
-  for(const g of L1_GROUPS) for(const w of g.words) all.push({ text:w, group:g.id, col:g.col });
-  for(const w of L1_NOISE) all.push({ text:w, group:'NOISE', col:DIM });
+function makeWords(groups){
+  words=[]; selected=[];
+  const all=[];
+  for(const g of groups) for(const w of g.words)
+    all.push({text:w, group:g.id, col:g.col, label:g.label});
   // shuffle
-  for(let i = all.length-1; i > 0; i--){
-    const j = Math.floor(Math.random()*(i+1)); [all[i],all[j]] = [all[j],all[i]];
+  for(let i=all.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];
   }
   for(const d of all){
-    let x, y, tries = 0;
-    do { x = 70+Math.random()*(W-140); y = 110+Math.random()*(H-210); tries++; }
-    while(tries < 50 && l1Words.some(w => Math.hypot(w.x-x, w.y-y) < 80));
-    l1Words.push({ ...d, x, y, vx:(Math.random()-.5)*.18, vy:(Math.random()-.5)*.18,
-      captured:false, capturedAnim:0, tx:x, ty:y });
+    let x,y,tries=0;
+    do{
+      x=70+Math.random()*(W-140);
+      y=110+Math.random()*(H-230);
+      tries++;
+    } while(tries<50 && words.some(w=>Math.hypot(w.x-x,w.y-y)<85));
+    words.push({
+      ...d, x, y,
+      vx:(Math.random()-.5)*.18, vy:(Math.random()-.5)*.18,
+      selected:false, formed:false, formT:0,
+      shakeT:0, shakeOff:0,
+      tx:x, ty:y, // target when formed
+    });
   }
 }
 
-function updateL1(dt){
-  for(const w of l1Words){
-    if(w.captured){
-      w.vx += (w.tx-w.x)*.05; w.vy += (w.ty-w.y)*.05;
-      w.vx *= .88; w.vy *= .88;
+// ── PHYSICS ───────────────────────────────────────
+function updateWords(dt){
+  for(const w of words){
+    if(w.formed){
+      // spring to target corner position
+      w.vx += (w.tx - w.x) * .05;
+      w.vy += (w.ty - w.y) * .05;
+      w.vx *= .85; w.vy *= .85;
       w.x += w.vx*dt; w.y += w.vy*dt;
-      w.capturedAnim = Math.min(1, w.capturedAnim + dt*.025);
+      w.formT = Math.min(1, w.formT + dt*.022);
       continue;
     }
-    w.vx += (Math.random()-.5)*.022;
-    w.vy += (Math.random()-.5)*.022;
-    w.vx *= .984; w.vy *= .984;
+    // shake
+    if(w.shakeT > 0){
+      w.shakeT = Math.max(0, w.shakeT - dt*.05);
+      w.shakeOff = Math.sin(w.shakeT * 28) * 6 * (w.shakeT/1);
+    } else { w.shakeOff = 0; }
+
+    w.vx += (Math.random()-.5)*.018;
+    w.vy += (Math.random()-.5)*.018;
+    w.vx *= .986; w.vy *= .986;
     w.x += w.vx*dt; w.y += w.vy*dt;
-    const pad = 64;
+    const pad=62;
     if(w.x<pad){w.x=pad;w.vx*=-.6;} if(w.x>W-pad){w.x=W-pad;w.vx*=-.6;}
-    if(w.y<100){w.y=100;w.vy*=-.6;} if(w.y>H-60){w.y=H-60;w.vy*=-.6;}
+    if(w.y<100){w.y=100;w.vy*=-.6;} if(w.y>H-90){w.y=H-90;w.vy*=-.6;}
   }
   // gentle repulsion between free words
-  const free = l1Words.filter(w => !w.captured);
-  for(let i=0; i<free.length; i++) for(let j=i+1; j<free.length; j++){
-    const a=free[i], b=free[j];
-    const dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy);
-    if(d<75&&d>.5){ const f=(1-d/75)*.028; a.vx-=dx/d*f; a.vy-=dy/d*f; b.vx+=dx/d*f; b.vy+=dy/d*f; }
+  const free = words.filter(w=>!w.formed);
+  for(let i=0;i<free.length;i++) for(let j=i+1;j<free.length;j++){
+    const a=free[i],b=free[j];
+    const dx=b.x-a.x+.01,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<88&&d>.5){ const f=(1-d/88)*.025; a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f; }
   }
-  if(l1Lasso.resultT>0) l1Lasso.resultT = Math.max(0, l1Lasso.resultT - dt*.028);
+  if(feedback.t>0) feedback.t=Math.max(0,feedback.t-dt*.03);
 }
 
-function drawL1(){
-  // Bottom separator when clusters exist
-  if(l1Formed.length > 0){
-    ctx.strokeStyle = DIM+'.08)'; ctx.lineWidth = .5;
-    ctx.beginPath(); ctx.moveTo(0,H-52); ctx.lineTo(W,H-52); ctx.stroke();
-    // Cluster group labels
+// ── DRAW ──────────────────────────────────────────
+function draw(){
+  ctx.fillStyle='#08080f'; ctx.fillRect(0,0,W,H);
+
+  // Formed cluster labels at bottom
+  const formedGroups=[...new Set(words.filter(w=>w.formed).map(w=>w.group))];
+  for(let fi=0;fi<formedGroups.length;fi++){
+    const gid=formedGroups[fi];
+    const g=(round===1?ROUND1:ROUND2).find(g=>g.id===gid);
+    const {cx,cy}=cornerPos(fi);
+    ctx.font='11px "Courier New",monospace';
+    ctx.fillStyle=g.col+'.5)';
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    for(let fi=0; fi<l1Formed.length; fi++){
-      const g = L1_GROUPS.find(g => g.id===l1Formed[fi]);
-      const {cx,cy} = l1Corner(fi);
-      ctx.font='11px "Courier New",monospace';
-      ctx.fillStyle = g.col+'.55)';
-      ctx.fillText('['+g.id+']', cx, cy-20);
-    }
+    ctx.fillText('['+g.label+' · '+g.id+']', cx, cy-26);
   }
 
-  // Lasso path
-  if(l1Lasso.path.length > 1){
-    ctx.beginPath();
-    ctx.moveTo(l1Lasso.path[0].x, l1Lasso.path[0].y);
-    for(let i=1; i<l1Lasso.path.length; i++) ctx.lineTo(l1Lasso.path[i].x, l1Lasso.path[i].y);
-    if(!l1Lasso.active && l1Lasso.result){
-      ctx.lineTo(l1Lasso.path[0].x, l1Lasso.path[0].y);
-    }
-    const bad = l1Lasso.result?.type==='bad';
-    const a   = l1Lasso.active ? .65 : Math.max(0,l1Lasso.resultT)*.7;
-    ctx.strokeStyle = (bad?'rgba(255,80,80,':ACCENT)+a+')';
-    ctx.lineWidth = 2.5; ctx.stroke();
+  // Feedback flash
+  if(feedback.t>0){
+    const a=Math.min(1,feedback.t)*.9;
+    ctx.font='bold 14px "Courier New",monospace';
+    ctx.fillStyle=(feedback.good?'rgba(200,255,80,':'rgba(255,80,80,')+a+')';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(feedback.msg, W/2, H*0.44);
   }
 
   // Words
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  for(const w of l1Words){
-    const inL = l1Lasso.path.length>3 && !w.captured && pointInPoly(w.x,w.y,l1Lasso.path);
-    let alpha, fs=16;
-    if(w.captured)          { alpha = .3 + w.capturedAnim*.5; }
-    else if(inL)            { alpha = .95; fs=18; }
-    else if(w.group==='NOISE') { alpha = .28; }
-    else                    { alpha = .55; }
-    ctx.font = `${fs}px "Courier New",monospace`;
-    ctx.fillStyle = (w.captured||inL ? w.col : w.group==='NOISE' ? DIM : WHITE) + alpha + ')';
-    ctx.fillText(w.text, w.x, w.y);
-  }
-}
-
-function pointInPoly(px,py,poly){
-  let inside=false;
-  for(let i=0,j=poly.length-1; i<poly.length; j=i++){
-    const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
-    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
-  }
-  return inside;
-}
-
-function evalLasso(){
-  const path = l1Lasso.path;
-  if(path.length < 6){ l1Lasso.result=null; return; }
-  const closed = Math.hypot(path[0].x-path[path.length-1].x, path[0].y-path[path.length-1].y) < 80;
-  const inside = l1Words.filter(w => !w.captured && pointInPoly(w.x,w.y,path));
-  if(!closed || inside.length===0){ l1Lasso.result={type:'bad'}; l1Lasso.resultT=1; return; }
-
-  const gc = {};
-  for(const w of inside) gc[w.group] = (gc[w.group]||0)+1;
-  const noise = gc['NOISE']||0; delete gc['NOISE'];
-  let dom=null, domC=0;
-  for(const [g,c] of Object.entries(gc)) if(c>domC){ dom=g; domC=c; }
-
-  const fail = !dom || domC<3 || noise>1 || l1Formed.includes(dom);
-  if(fail){
-    l1Lasso.result={type:'bad'}; l1Lasso.resultT=1;
-    const cx=inside.reduce((s,w)=>s+w.x,0)/inside.length;
-    const cy=inside.reduce((s,w)=>s+w.y,0)/inside.length;
-    for(const w of inside){ const dx=w.x-cx,dy=w.y-cy,d=Math.sqrt(dx*dx+dy*dy)+1; w.vx+=dx/d*2.2; w.vy+=dy/d*2.2; }
-    return;
-  }
-  // SUCCESS
-  l1Lasso.result={type:'good'}; l1Lasso.resultT=1;
-  l1Formed.push(dom);
-  const fi = l1Formed.length-1;
-  const {cx,cy} = l1Corner(fi);
-  l1Words.filter(w=>w.group===dom).forEach((w,k) => {
-    w.captured=true; w.capturedAnim=0;
-    w.tx = cx+(k-2)*22; w.ty = cy;
-  });
-  updateHUD1();
-  if(l1Formed.length>=4) setTimeout(()=>complete('CLUSTER','在向量空间中，语义相似的词天然聚集——这是 embedding 的本质。意义决定距离。',true),1000);
-}
-
-function updateHUD1(){
-  hud(`L1 · CLUSTER\n${timer|0}s`, `${l1Formed.length} / 4`, '画圈圈住语义相关的词');
-}
-
-// ─── LEVEL 2 — STRING ─────────────────────────────
-// Draw a continuous strand. It threads through words
-// it passes near. Stranding ≥3 same-group words = cluster.
-// Touching a different-group word snaps the strand.
-// ──────────────────────────────────────────────────
-const L2_GROUPS = [
-  { id:'SENSE', col:'rgba(200,255,80,',  words:['visual','audio','signal','sensor'] },
-  { id:'THINK', col:'rgba(255,160,80,',  words:['reason','infer','plan','logic'] },
-  { id:'STORE', col:'rgba(80,200,255,',  words:['token','embed','buffer','vector'] },
-  { id:'ACT',   col:'rgba(160,255,180,', words:['call','tool','output','execute'] },
-];
-const L2_NOISE  = ['the','but','and','with'];
-const THREAD_R  = 42;
-const L2_GOAL   = 3;
-
-let l2Words=[], l2Formed=[];
-let l2Strand = { active:false, path:[], threaded:[], broken:false, result:null, resultT:0 };
-
-function initL2(){
-  l2Words=[]; l2Formed=[];
-  l2Strand={active:false,path:[],threaded:[],broken:false,result:null,resultT:0};
-  const all=[];
-  for(const g of L2_GROUPS) for(const w of g.words) all.push({text:w,group:g.id,col:g.col});
-  for(const w of L2_NOISE) all.push({text:w,group:'NOISE',col:DIM});
-  for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
-  for(const d of all){
-    let x,y,tries=0;
-    do{x=72+Math.random()*(W-144);y=105+Math.random()*(H-200);tries++;}
-    while(tries<50 && l2Words.some(w=>Math.hypot(w.x-x,w.y-y)<80));
-    l2Words.push({...d,x,y,vx:(Math.random()-.5)*.14,vy:(Math.random()-.5)*.14,
-      formed:false,threaded:false,pingT:0});
-  }
-}
-
-function updateL2(dt){
-  for(const w of l2Words){
-    if(!w.formed){
-      w.vx+=(Math.random()-.5)*.016; w.vy+=(Math.random()-.5)*.016;
-      w.vx*=.984; w.vy*=.984;
-      w.x+=w.vx*dt; w.y+=w.vy*dt;
-      const pad=66;
-      if(w.x<pad){w.x=pad;w.vx*=-.5;} if(w.x>W-pad){w.x=W-pad;w.vx*=-.5;}
-      if(w.y<100){w.y=100;w.vy*=-.5;} if(w.y>H-52){w.y=H-52;w.vy*=-.5;}
+  for(const w of words){
+    const ox = w.shakeOff;
+    let fs, alpha, col;
+    if(w.formed){
+      fs=17; alpha=.2+w.formT*.55; col=w.col;
+    } else if(w.selected){
+      fs=18; alpha=.95; col=w.col;
+    } else {
+      fs=16; alpha=.45; col=WHITE;
     }
-    if(w.pingT>0) w.pingT=Math.max(0,w.pingT-dt*.04);
-  }
-  // repulsion
-  const free=l2Words.filter(w=>!w.formed);
-  for(let i=0;i<free.length;i++) for(let j=i+1;j<free.length;j++){
-    const a=free[i],b=free[j];
-    const dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy);
-    if(d<78&&d>.5){const f=(1-d/78)*.022;a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f;}
-  }
-  // strand threading
-  if(l2Strand.active && !l2Strand.broken && l2Strand.path.length>0){
-    const tip=l2Strand.path[l2Strand.path.length-1];
-    for(const w of l2Words){
-      if(w.threaded||w.formed) continue;
-      if(Math.hypot(w.x-tip.x,w.y-tip.y)<THREAD_R){
-        if(w.group==='NOISE'||(l2Strand.threaded.length>0&&l2Strand.threaded[l2Strand.threaded.length-1].group!==w.group)){
-          // break
-          l2Strand.broken=true;
-          const cx=tip.x,cy=tip.y;
-          for(const tw of l2Strand.threaded){
-            tw.threaded=false;
-            const dx=tw.x-cx,dy=tw.y-cy,d=Math.sqrt(dx*dx+dy*dy)+1;
-            tw.vx+=dx/d*1.8; tw.vy+=dy/d*1.8;
-          }
-          break;
-        }
-        w.threaded=true;
-        l2Strand.threaded.push(w);
-        w.pingT=1;
-      }
-    }
-    // proximity ping
-    for(const w of l2Words){
-      if(!w.threaded&&!w.formed&&Math.hypot(w.x-tip.x,w.y-tip.y)<58) w.pingT=Math.max(w.pingT,.32);
-    }
-  }
-  if(l2Strand.resultT>0) l2Strand.resultT=Math.max(0,l2Strand.resultT-dt*.03);
-}
-
-function evalStrand(){
-  const th=l2Strand.threaded;
-  if(!l2Strand.broken && th.length>=3 && th[0].group!=='NOISE'){
-    const gid=th[0].group;
-    if(!l2Formed.includes(gid) && th.every(w=>w.group===gid)){
-      l2Formed.push(gid);
-      for(const w of th) w.formed=true;
-      // drift toward centroid
-      const cx=th.reduce((s,w)=>s+w.x,0)/th.length;
-      const cy=th.reduce((s,w)=>s+w.y,0)/th.length;
-      for(const w of th){w.vx+=(cx-w.x)*.018;w.vy+=(cy-w.y)*.018;}
-      l2Strand.result='good'; l2Strand.resultT=1;
-      updateHUD2();
-      if(l2Formed.length>=L2_GOAL) setTimeout(()=>complete('STRING','相关概念像弦一样串联——这是注意力机制的本质：信息沿最强关联路径传播。',false),900);
-      return;
-    }
-  }
-  for(const w of th) w.threaded=false;
-  l2Strand.result='bad'; l2Strand.resultT=.7;
-}
-
-function drawL2(){
-  // strand path
-  if(l2Strand.path.length>1){
-    ctx.beginPath();
-    ctx.moveTo(l2Strand.path[0].x,l2Strand.path[0].y);
-    for(let i=1;i<l2Strand.path.length;i++) ctx.lineTo(l2Strand.path[i].x,l2Strand.path[i].y);
-    const bad = l2Strand.broken||(l2Strand.result==='bad'&&!l2Strand.active);
-    const a   = l2Strand.active?.6:Math.max(0,l2Strand.resultT)*.65;
-    ctx.strokeStyle=(bad?'rgba(255,80,80,':ACCENT)+a+')';
-    ctx.lineWidth=2.5; ctx.stroke();
-  }
-  // connections along threaded beads
-  if(l2Strand.threaded.length>1){
-    const g=L2_GROUPS.find(g=>g.id===l2Strand.threaded[0].group);
-    if(g) for(let i=1;i<l2Strand.threaded.length;i++){
-      const a=l2Strand.threaded[i-1],b=l2Strand.threaded[i];
-      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
-      ctx.strokeStyle=g.col+'.35)';ctx.lineWidth=1.2;ctx.stroke();
-    }
-  }
-  // formed cluster connections + labels
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  for(const gid of l2Formed){
-    const fw=l2Words.filter(w=>w.group===gid&&w.formed);
-    const g=L2_GROUPS.find(g=>g.id===gid);
-    for(let i=1;i<fw.length;i++){
-      ctx.beginPath();ctx.moveTo(fw[i-1].x,fw[i-1].y);ctx.lineTo(fw[i].x,fw[i].y);
-      ctx.strokeStyle=g.col+'.2)';ctx.lineWidth=1;ctx.stroke();
-    }
-    const cx=fw.reduce((s,w)=>s+w.x,0)/fw.length;
-    const cy=fw.reduce((s,w)=>s+w.y,0)/fw.length;
-    ctx.font='11px "Courier New",monospace';ctx.fillStyle=g.col+'.55)';
-    ctx.fillText('['+gid+']',cx,cy-28);
-  }
-  // words
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  for(const w of l2Words){
-    const ping=Math.max(0,w.pingT);
-    let fs=16,alpha;
-    if(w.formed)          {fs=18;alpha=.85;}
-    else if(w.threaded)   {fs=18;alpha=.8;}
-    else if(ping>.2)      {fs=17;alpha=.35+ping*.45;}
-    else if(w.group==='NOISE'){alpha=.25;}
-    else                  {alpha=.5;}
     ctx.font=`${fs}px "Courier New",monospace`;
-    ctx.fillStyle=((w.formed||w.threaded||ping>.2)?w.col:DIM)+alpha+')';
-    ctx.fillText(w.text,w.x,w.y);
+    ctx.fillStyle=col+alpha+')';
+    ctx.fillText(w.text, w.x+ox, w.y);
+
+    // Selection ring
+    if(w.selected && !w.formed){
+      const tw=ctx.measureText(w.text).width;
+      ctx.strokeStyle=w.col+'.6)'; ctx.lineWidth=1.5;
+      ctx.strokeRect(w.x+ox-tw/2-8, w.y-12, tw+16, 24);
+    }
+  }
+
+  // Bottom separator line when clusters start forming
+  if(formedGroups.length>0){
+    ctx.strokeStyle=DIM+'.07)'; ctx.lineWidth=.5;
+    ctx.beginPath(); ctx.moveTo(0,H-58); ctx.lineTo(W,H-58); ctx.stroke();
   }
 }
 
-function updateHUD2(){
-  hud(`L2 · STRING\n${timer|0}s`,`${l2Formed.length} / ${L2_GOAL}`,'画线穿过语义相关的词');
+function cornerPos(i){
+  const cols=4, margin=W*.12, step=(W-margin*2)/3;
+  return { cx: margin+i*step, cy: H-32 };
 }
 
-// ─── INPUT ─────────────────────────────────────────
-function getXY(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+// ── SELECTION + SUBMIT ─────────────────────────────
+function tapWord(wx, wy){
+  if(!alive) return;
+  // Find tapped word (generous radius)
+  let best=null, bestD=44;
+  for(const w of words){
+    if(w.formed) continue;
+    const d=Math.hypot(wx-w.x, wy-w.y);
+    if(d<bestD){ bestD=d; best=w; }
+  }
+  if(!best) return;
 
-canvas.addEventListener('pointerdown',e=>{
-  if(!alive) return;
-  canvas.setPointerCapture(e.pointerId);
-  const {x,y}=getXY(e);
-  if(level===1){
-    l1Lasso={active:true,path:[{x,y}],result:null,resultT:0};
-  } else if(level===2){
-    for(const w of l2Strand.threaded) if(!w.formed) w.threaded=false;
-    l2Strand={active:true,path:[{x,y}],threaded:[],broken:false,result:null,resultT:0};
+  if(best.selected){
+    best.selected=false;
+    selected=selected.filter(s=>s!==best);
+  } else {
+    if(selected.length>=4) return;
+    best.selected=true;
+    selected.push(best);
   }
-});
-canvas.addEventListener('pointermove',e=>{
-  if(!alive) return;
-  const {x,y}=getXY(e);
-  if(level===1&&l1Lasso.active){
-    const last=l1Lasso.path[l1Lasso.path.length-1];
-    if(Math.hypot(x-last.x,y-last.y)>7) l1Lasso.path.push({x,y});
-  } else if(level===2&&l2Strand.active){
-    const last=l2Strand.path[l2Strand.path.length-1];
-    if(Math.hypot(x-last.x,y-last.y)>6) l2Strand.path.push({x,y});
-  }
-});
-canvas.addEventListener('pointerup',e=>{
-  if(!alive) return;
-  if(level===1&&l1Lasso.active){
-    l1Lasso.active=false; evalLasso();
-    setTimeout(()=>{ l1Lasso.path=[]; },700);
-  }
-  if(level===2&&l2Strand.active){
-    l2Strand.active=false; evalStrand();
-    setTimeout(()=>{ l2Strand.path=[]; l2Strand.threaded=[]; },700);
-  }
-});
+  updateSubmitBtn();
+}
 
-// ─── HUD ───────────────────────────────────────────
-function hud(tl='',tr='',bl=''){
+function updateSubmitBtn(){
+  document.getElementById('btn-submit').style.display = selected.length===4 ? 'block' : 'none';
+}
+
+function submitGuess(){
+  if(selected.length!==4||!alive) return;
+  // Check if all same group
+  const g=selected[0].group;
+  const correct=selected.every(w=>w.group===g);
+  if(correct){
+    // Success
+    const fi=[...new Set(words.filter(w=>w.formed).map(w=>w.group))].length;
+    const gDef=(round===1?ROUND1:ROUND2).find(d=>d.id===g);
+    for(let i=0;i<selected.length;i++){
+      const {cx,cy}=cornerPos(fi);
+      selected[i].formed=true; selected[i].formT=0;
+      selected[i].tx=cx+(i-1.5)*26; selected[i].ty=cy;
+    }
+    formed++;
+    feedback={msg:`[ ${gDef.label} · ${g} ] ✓`, t:1.4, good:true};
+    selected=[];
+    updateSubmitBtn();
+    if(formed>=4) setTimeout(()=>endGame(true),1200);
+  } else {
+    // Wrong
+    lives--;
+    for(const w of selected){ w.shakeT=1; w.selected=false; }
+    selected=[];
+    updateSubmitBtn();
+    // Check near-miss: how many same group?
+    const gc={};
+    for(const w of [...selected]) gc[w.group]=(gc[w.group]||0)+1;
+    feedback={msg:'× 不是同一类', t:1.2, good:false};
+    updateHUD();
+    if(lives<=0) setTimeout(()=>endGame(false),600);
+  }
+  updateHUD();
+}
+
+// ── HUD ───────────────────────────────────────────
+function hud(tl,tr,bl){
   document.getElementById('hud-tl').innerHTML=tl.replace(/\n/g,'<br>');
   document.getElementById('hud-tr').innerHTML=tr;
-  document.getElementById('hud-bl').innerHTML=bl;
+  document.getElementById('hud-bl').innerHTML=bl||'';
 }
 
-// ─── GAME FLOW ─────────────────────────────────────
-function startL1(){
+function updateHUD(){
+  const hearts='♥'.repeat(lives)+'♡'.repeat(Math.max(0,4-lives));
+  const prog=`${formed} / 4 clusters`;
+  hud(`R${round} · CLUSTER\n${hearts}`, prog, selected.length>0?`已选 ${selected.length} / 4`:'点击词语选中');
+}
+
+// ── GAME FLOW ─────────────────────────────────────
+function startGame(){
   document.getElementById('start').classList.add('gone');
-  level=1; timer=90; timerOn=true;
-  initL1(); alive=true; updateHUD1();
+  round=1; lives=4; formed=0; selected=[];
+  makeWords(ROUND1);
+  alive=true;
+  updateHUD();
 }
-function startL2(){
-  document.getElementById('cmp-overlay').classList.add('gone');
-  level=2; timer=120; timerOn=true;
-  initL2(); alive=true; updateHUD2();
-}
-function retryLevel(){
-  document.getElementById('cmp-overlay').classList.add('gone');
-  setTimeout(()=>{
-    if(level===1){timer=90;initL1();updateHUD1();}
-    else{timer=120;initL2();updateHUD2();}
-    timerOn=true; alive=true;
-  },300);
-}
-function nextLevel(){ startL2(); }
-function complete(kw,body,hasNext){
-  alive=false; timerOn=false;
-  document.getElementById('cmp-kw').textContent=kw;
-  document.getElementById('cmp-body').textContent=body;
-  document.getElementById('btn-next').style.display=hasNext?'':'none';
-  document.getElementById('cmp-overlay').classList.remove('gone');
-}
-function failLevel(){ alive=false; timerOn=false; complete('TIME OUT','时间耗尽。再试一次。',false); }
 
-// ─── MAIN LOOP ─────────────────────────────────────
+function restartGame(){
+  document.getElementById('cmp-overlay').classList.add('gone');
+  round=1; lives=4; formed=0; selected=[];
+  makeWords(ROUND1);
+  alive=true;
+  updateHUD();
+  document.getElementById('btn-submit').style.display='none';
+}
+
+function endGame(win){
+  alive=false;
+  document.getElementById('btn-submit').style.display='none';
+  if(win && round===1){
+    // Advance to round 2
+    round=2; lives=4; formed=0; selected=[];
+    document.getElementById('cmp-kw').textContent='ROUND 1 CLEAR';
+    document.getElementById('cmp-body').textContent='基础语义空间已解析。第二轮词汇更模糊——同样的四个维度，但边界更难判断。';
+    document.getElementById('cmp-overlay').classList.remove('gone');
+    // Override AGAIN button to start R2
+    document.querySelector('#cmp-btns .btn').textContent='R2 →';
+    document.querySelector('#cmp-btns .btn').setAttribute('onpointerdown','startRound2()');
+  } else if(win && round===2){
+    document.getElementById('cmp-kw').textContent='COMPLETE';
+    document.getElementById('cmp-body').textContent='你在向量空间中识别出了 8 个语义簇。这就是 embedding 的本质：意义相近的词，在高维空间里距离更近。';
+    document.getElementById('cmp-overlay').classList.remove('gone');
+    document.querySelector('#cmp-btns .btn').textContent='AGAIN';
+    document.querySelector('#cmp-btns .btn').setAttribute('onpointerdown','restartGame()');
+  } else {
+    document.getElementById('cmp-kw').textContent='GAME OVER';
+    document.getElementById('cmp-body').textContent='命用尽。语义空间依然在等待被理解。';
+    document.getElementById('cmp-overlay').classList.remove('gone');
+    document.querySelector('#cmp-btns .btn').textContent='RETRY';
+    document.querySelector('#cmp-btns .btn').setAttribute('onpointerdown','restartGame()');
+  }
+}
+
+function startRound2(){
+  document.getElementById('cmp-overlay').classList.add('gone');
+  lives=4; formed=0; selected=[];
+  makeWords(ROUND2);
+  alive=true;
+  updateHUD();
+  document.getElementById('btn-submit').style.display='none';
+}
+
+// ── INPUT ─────────────────────────────────────────
+canvas.addEventListener('pointerdown', e => {
+  if(!alive) return;
+  const r = canvas.getBoundingClientRect();
+  tapWord(e.clientX-r.left, e.clientY-r.top);
+});
+
+// ── MAIN LOOP ─────────────────────────────────────
 let lastT=0;
 function loop(t){
   const dt=Math.min((t-lastT)/16.67,3); lastT=t;
-  if(timerOn){
-    const prev=timer|0;
-    timer=Math.max(0,timer-dt*16.67/1000);
-    if(timer<=0){timerOn=false;failLevel();}
-    else if((timer|0)!==prev){ if(level===1)updateHUD1(); else updateHUD2(); }
-  }
-  ctx.fillStyle='#08080f'; ctx.fillRect(0,0,W,H);
-  if(alive){
-    if(level===1){ updateL1(dt); drawL1(); }
-    if(level===2){ updateL2(dt); drawL2(); }
-  }
+  updateWords(dt);
+  draw();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
