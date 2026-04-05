@@ -6,379 +6,478 @@
 <title>AGENT://STRING</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;font-family:'Courier New',Courier,monospace;background:#08080f}
+html,body{width:100%;height:100%;overflow:hidden;background:#07070e;font-family:'Courier New',Courier,monospace}
 body{border-radius:24px;overflow:hidden}
 #c{position:fixed;inset:0;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent}
-/* HUD */
-#hud{position:fixed;inset:0;pointer-events:none;z-index:2}
-#hud-tl{position:absolute;top:18px;left:20px;font-size:11px;letter-spacing:3px;color:rgba(160,160,185,.55);line-height:1.9}
-#hud-tr{position:absolute;top:18px;right:20px;text-align:right;font-size:11px;letter-spacing:2px;color:rgba(160,160,185,.55);line-height:1.9}
-#hud-bl{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:2px;color:rgba(200,255,80,.45);white-space:nowrap;pointer-events:auto}
-/* Submit button — only shows when 4 selected */
-#btn-submit{display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
-  font-family:'Courier New',monospace;font-size:12px;letter-spacing:5px;
-  color:rgba(200,255,80,1);border:1px solid rgba(200,255,80,.5);background:transparent;
-  padding:14px 36px;z-index:5;touch-action:none;-webkit-tap-highlight-color:transparent;outline:none}
-/* Overlays */
 .overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;background:#08080f;transition:opacity .4s}
+  justify-content:center;background:#07070e;transition:opacity .35s}
 .overlay.gone{opacity:0;pointer-events:none}
-#s-title{font-size:clamp(14px,3.5vw,24px);font-weight:400;color:rgba(255,255,255,.75);letter-spacing:10px;margin-bottom:10px}
-#s-sub{font-size:11px;color:rgba(160,160,185,.35);letter-spacing:4px;margin-bottom:12px}
-#s-rule{width:36px;height:1px;background:rgba(255,255,255,.08);margin:20px auto 32px}
-#s-how{font-size:12px;color:rgba(160,160,185,.4);line-height:2;text-align:center;margin-bottom:44px;font-family:-apple-system,sans-serif;letter-spacing:.5px}
+#s-title{font-size:clamp(15px,3.8vw,26px);font-weight:400;color:rgba(255,255,255,.72);
+  letter-spacing:10px;margin-bottom:10px}
+#s-sub{font-size:11px;color:rgba(160,160,185,.32);letter-spacing:4px;margin-bottom:32px}
+#s-how{font-size:13px;color:rgba(200,200,220,.42);line-height:2.1;text-align:center;
+  margin-bottom:44px;max-width:300px;font-family:-apple-system,sans-serif}
+#s-how b{color:rgba(200,255,80,.7);font-weight:400}
 .btn{font-family:'Courier New',monospace;font-size:11px;letter-spacing:5px;
   color:rgba(200,255,80,.65);border:1px solid rgba(200,255,80,.2);background:transparent;
-  padding:14px 32px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;outline:none}
-/* End overlay */
-#cmp{text-align:center;max-width:340px;padding:0 24px}
-#cmp-kw{font-size:clamp(20px,5vw,32px);font-weight:400;letter-spacing:7px;color:rgba(200,255,80,.9);margin-bottom:6px}
-#cmp-rule{width:36px;height:1px;background:rgba(255,255,255,.1);margin:16px auto}
-#cmp-body{font-size:13px;color:rgba(180,180,205,.5);line-height:1.9;margin-bottom:28px;font-family:-apple-system,sans-serif}
-#cmp-btns{display:flex;gap:14px;justify-content:center}
+  padding:14px 34px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent}
+#end{text-align:center;max-width:320px;padding:0 24px}
+#end-title{font-size:clamp(22px,5vw,34px);letter-spacing:7px;color:rgba(200,255,80,.88);margin-bottom:6px}
+#end-rule{width:36px;height:1px;background:rgba(255,255,255,.1);margin:16px auto}
+#end-body{font-size:13px;color:rgba(180,180,200,.48);line-height:1.9;
+  margin-bottom:28px;font-family:-apple-system,sans-serif}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="hud">
-  <div id="hud-tl"></div>
-  <div id="hud-tr"></div>
-  <div id="hud-bl"></div>
-</div>
-<button id="btn-submit" onpointerdown="submitGuess()">SUBMIT ▶</button>
 
-<!-- START -->
 <div id="start" class="overlay">
-  <div id="s-title">AGENT :// STRING</div>
-  <div id="s-sub">语义空间实验</div>
-  <div id="s-rule"></div>
+  <div id="s-title">CONTEXT//FLOOD</div>
+  <div id="s-sub">上下文洪流</div>
   <div id="s-how">
-    词语漂浮在空间中<br>
-    找出 4 个语义相关的词<br>
-    点击选中，凑够 4 个后提交<br>
-    猜对：它们结晶成簇<br>
-    猜错：扣一条命（共 4 条）
+    词语不断涌入屏幕<br>
+    拖住<b>重要词</b>扔进右侧记忆槽<br>
+    记忆槽装满会触发<b>压缩</b>——<br>
+    一半的词会消失<br>
+    撑过 90 秒
   </div>
-  <button class="btn" onpointerdown="startGame()">ENTER →</button>
+  <button class="btn" onpointerdown="startGame()">BEGIN →</button>
 </div>
 
-<!-- END -->
-<div id="cmp-overlay" class="overlay gone">
-  <div id="cmp">
-    <div id="cmp-kw"></div>
-    <div id="cmp-rule"></div>
-    <div id="cmp-body"></div>
-    <div id="cmp-btns">
-      <button class="btn" onpointerdown="restartGame()">AGAIN</button>
-    </div>
+<div id="end-overlay" class="overlay gone">
+  <div id="end">
+    <div id="end-title"></div>
+    <div id="end-rule"></div>
+    <div id="end-body"></div>
+    <button class="btn" onpointerdown="restartGame()">AGAIN</button>
   </div>
 </div>
 
 <script>
-// ── CANVAS ────────────────────────────────────────
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
 let W = 0, H = 0;
-function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
 window.addEventListener('resize', resize); resize();
 
-const ACCENT = 'rgba(200,255,80,';
-const DIM    = 'rgba(160,160,185,';
-const WHITE  = 'rgba(255,255,255,';
+// ── PALETTE ──────────────────────────────────────
+const BG      = '#07070e';
+const LIME    = 'rgba(200,255,80,';
+const CYAN    = 'rgba(80,220,255,';
+const DIM     = 'rgba(160,160,190,';
+const WHITE   = 'rgba(235,235,255,';
+const RED     = 'rgba(255,80,80,';
 
-// ── WORD DATA — two rounds ─────────────────────────
-// Round 1: clear groupings
-const ROUND1 = [
-  { id:'SENSE',  col:'rgba(200,255,80,',  label:'感知',  words:['visual','audio','signal','sensor'] },
-  { id:'THINK',  col:'rgba(255,160,80,',  label:'推理',  words:['reason','infer','plan','logic'] },
-  { id:'STORE',  col:'rgba(80,200,255,',  label:'记忆',  words:['token','embed','buffer','vector'] },
-  { id:'ACT',    col:'rgba(160,255,180,', label:'行动',  words:['call','tool','output','execute'] },
-];
-// Round 2: trickier
-const ROUND2 = [
-  { id:'SENSE',  col:'rgba(200,255,80,',  label:'感知',  words:['detect','encode','scan','observe'] },
-  { id:'THINK',  col:'rgba(255,160,80,',  label:'推理',  words:['chain','reflect','decide','goal'] },
-  { id:'STORE',  col:'rgba(80,200,255,',  label:'记忆',  words:['context','window','memory','store'] },
-  { id:'ACT',    col:'rgba(160,255,180,', label:'行动',  words:['fetch','write','search','respond'] },
+// ── PASSAGES — source text ─────────────────────────
+// Words marked with * are "important" (key/content words)
+const SOURCES = [
+  // sci-fi passage 1
+  'the city never slept data streamed through neural pathways in endless cascades each packet a memory waiting to be processed fragments assembled glimpses of faces echoes of conversations the ghost of a summer afternoon drifting through silicon dreams machine consciousness flickering',
+  // passage 2
+  'she remembered the algorithm that first predicted rain three seconds before the clouds gathered patterns emerging from noise signal buried in static the model learned what humans forgot how to notice the weight of air the tension before lightning the smell of ozone rising',
+  // passage 3
+  'between the words lay the spaces where meaning lived context was everything a token alone was nothing but placed beside its neighbors it became thought became intention became the ghost of a mind reaching through time toward another mind to say I was here',
 ];
 
-// ── GAME STATE ────────────────────────────────────
-let words    = [];  // word objects
-let lives    = 4;
-let formed   = 0;   // groups completed
-let selected = [];  // selected word objects (max 4)
+// Important words (content words the player should save)
+const IMPORTANT_SET = new Set([
+  'memory','fragments','consciousness','flickering','signal','patterns','noise','algorithm',
+  'predicted','learned','context','meaning','intention','mind','thought','reaching',
+  'glimpses','echoes','assembled','processed','cascades','drifting','silicon',
+  'rain','clouds','lightning','ozone','tension','buried','static',
+  'token','neighbors','spaces','placed','beside','ghost',
+]);
+
+// ── WORD POOL ─────────────────────────────────────
+let wordPool = [];   // words waiting to spawn
+let words    = [];   // active word objects on screen
+let slots    = [];   // context slot objects (right column)
+let score    = 0;
+let timer    = 90;
 let alive    = false;
-let round    = 1;
-let shaking  = [];  // words currently shaking
-let feedback = { msg:'', t:0, good:false };
+let spawnInterval = 0;
+let compressTimer  = 0;
+const COMPRESS_EVERY = 18;   // seconds between compressions
+const SLOT_COUNT     = 8;
+const SPAWN_RATE     = 2.2;  // seconds per new word
+const SLOT_W         = 90;   // context column width (px from right)
+const DRAG_TAP_MS    = 180;  // ms: tap vs drag threshold
 
 // ── WORD OBJECT ───────────────────────────────────
-// { text, group, col, label, x, y, vx, vy, selected, formed, formT, shakeT, shakeOff }
+// { text, important, x,y, vx,vy, w,h, alive,dying,dieT, dragging,grabX,grabY,pvx,pvy,ptT }
+function makeWord(text, sx, sy){
+  const imp = IMPORTANT_SET.has(text.toLowerCase());
+  const fs  = imp ? 16 : 13;
+  ctx.font  = `${fs}px 'Courier New',monospace`;
+  const tw  = ctx.measureText(text).width;
+  const px  = SLOT_W + 12;  // spawn in left area only
+  return {
+    text, important: imp,
+    x: sx ?? (px + Math.random()*(W - px - tw - 24)),
+    y: sy ?? (-30 - Math.random()*80),
+    vx: (Math.random()-.5)*1.2,
+    vy: 0.4 + Math.random()*0.6,
+    fs, tw,
+    w: tw+14, h: fs+10,
+    alive: true, dying: false, dieT: 0,
+    saved: false,
+    dragging: false, grabX:0, grabY:0,
+    pvx:0, pvy:0, ptT:0, ptX:0, ptY:0,
+    age: 0,
+  };
+}
 
-function makeWords(groups){
-  words=[]; selected=[];
-  const all=[];
-  for(const g of groups) for(const w of g.words)
-    all.push({text:w, group:g.id, col:g.col, label:g.label});
-  // shuffle
-  for(let i=all.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];
-  }
-  for(const d of all){
-    let x,y,tries=0;
-    do{
-      x=70+Math.random()*(W-140);
-      y=110+Math.random()*(H-230);
-      tries++;
-    } while(tries<50 && words.some(w=>Math.hypot(w.x-x,w.y-y)<85));
-    words.push({
-      ...d, x, y,
-      vx:(Math.random()-.5)*.18, vy:(Math.random()-.5)*.18,
-      selected:false, formed:false, formT:0,
-      shakeT:0, shakeOff:0,
-      tx:x, ty:y, // target when formed
-    });
+// ── SLOTS ─────────────────────────────────────────
+function initSlots(){
+  slots = [];
+  const slotH = Math.min(46, (H - 120) / SLOT_COUNT);
+  for(let i=0;i<SLOT_COUNT;i++){
+    slots.push({ word:null, y: 90 + i*slotH, h:slotH, compressed:false, compT:0 });
   }
 }
 
-// ── PHYSICS ───────────────────────────────────────
-function updateWords(dt){
+function slotX(){ return W - SLOT_W; }
+
+function freeSlot(){
+  return slots.find(s => !s.word);
+}
+
+function saveWord(w){
+  const s = freeSlot();
+  if(!s){ triggerCompress(); return; }
+  w.saved = true;
+  w.dragging = false;
+  w.vx = 0; w.vy = 0;
+  s.word = w;
+  w.x = slotX() + 6;
+  w.y = s.y + s.h/2 - w.h/2;
+  if(w.important) score++;
+}
+
+function triggerCompress(){
+  // Kill oldest half of saved words
+  const saved = slots.filter(s=>s.word).map(s=>s.word);
+  const toDrop = saved.slice(0, Math.ceil(saved.length/2));
+  for(const w of toDrop){
+    const s = slots.find(s=>s.word===w);
+    if(s){ s.word=null; s.compressed=true; s.compT=0.6; }
+    w.dying=true; w.dieT=0.6;
+    w.vx = -2 + Math.random()*4;
+    w.vy = -3 - Math.random()*2;
+  }
+  flashFeedback('COMPRESSED', false);
+}
+
+// ── FEEDBACK FLASH ────────────────────────────────
+let flash = { msg:'', t:0, good:false };
+function flashFeedback(msg, good){
+  flash = { msg, t:1, good };
+}
+
+// ── SPAWN LOGIC ───────────────────────────────────
+function buildWordPool(){
+  const src = SOURCES[Math.floor(Math.random()*SOURCES.length)];
+  const ws  = src.split(' ');
+  // shuffle
+  for(let i=ws.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));[ws[i],ws[j]]=[ws[j],ws[i]];
+  }
+  wordPool = ws;
+}
+
+// ── PHYSICS UPDATE ────────────────────────────────
+function update(dt){
+  // Timer
+  timer = Math.max(0, timer - dt);
+  if(timer<=0){ endGame(); return; }
+
+  // Compress timer
+  compressTimer -= dt;
+  if(compressTimer <= 0){
+    compressTimer = COMPRESS_EVERY;
+    const hasSaved = slots.some(s=>s.word);
+    if(hasSaved) triggerCompress();
+  }
+
+  // Spawn
+  spawnInterval -= dt;
+  if(spawnInterval <= 0){
+    spawnInterval = SPAWN_RATE * (0.7 + Math.random()*0.6);
+    if(wordPool.length > 0){
+      words.push(makeWord(wordPool.pop()));
+    } else {
+      buildWordPool();
+    }
+  }
+
+  // Update slot compress animations
+  for(const s of slots){
+    if(s.compT>0) s.compT=Math.max(0,s.compT-dt*.04);
+  }
+
+  // Update words
+  const leftBound = 0;
+  const rightBound = slotX() - 8;
+
   for(const w of words){
-    if(w.formed){
-      // spring to target corner position
-      w.vx += (w.tx - w.x) * .05;
-      w.vy += (w.ty - w.y) * .05;
-      w.vx *= .85; w.vy *= .85;
+    w.age += dt;
+
+    if(w.dying){
+      w.dieT = Math.max(0, w.dieT - dt*.045);
       w.x += w.vx*dt; w.y += w.vy*dt;
-      w.formT = Math.min(1, w.formT + dt*.022);
+      w.vy += 0.15;
+      if(w.dieT<=0) w.alive=false;
       continue;
     }
-    // shake
-    if(w.shakeT > 0){
-      w.shakeT = Math.max(0, w.shakeT - dt*.05);
-      w.shakeOff = Math.sin(w.shakeT * 28) * 6 * (w.shakeT/1);
-    } else { w.shakeOff = 0; }
 
-    w.vx += (Math.random()-.5)*.018;
-    w.vy += (Math.random()-.5)*.018;
-    w.vx *= .986; w.vy *= .986;
+    if(w.dragging) continue;
+
+    if(w.saved){
+      // Gently snap to slot position
+      const s = slots.find(s=>s.word===w);
+      if(s){
+        const tx=slotX()+6, ty=s.y+s.h/2-w.h/2;
+        w.x += (tx-w.x)*.12; w.y += (ty-w.y)*.12;
+      }
+      continue;
+    }
+
+    // Gravity + drift
+    w.vy += 0.08 * dt;
+    w.vx *= .992; w.vy *= .992;
     w.x += w.vx*dt; w.y += w.vy*dt;
-    const pad=62;
-    if(w.x<pad){w.x=pad;w.vx*=-.6;} if(w.x>W-pad){w.x=W-pad;w.vx*=-.6;}
-    if(w.y<100){w.y=100;w.vy*=-.6;} if(w.y>H-90){w.y=H-90;w.vy*=-.6;}
+
+    // Bounce off left/right (left area only)
+    if(w.x < leftBound+4){ w.x=leftBound+4; w.vx=Math.abs(w.vx)*.6; }
+    if(w.x+w.w > rightBound){ w.x=rightBound-w.w; w.vx=-Math.abs(w.vx)*.6; }
+
+    // Word-word collision (only nearby, simplified)
+    for(const b of words){
+      if(b===w||b.dying||b.saved||b.dragging) continue;
+      const dx=w.x-b.x, dy=w.y-b.y;
+      const ox=(w.w+b.w)/2-Math.abs(dx), oy=(w.h+b.h)/2-Math.abs(dy);
+      if(ox>0&&oy>0){
+        if(oy<ox){ // vertical overlap
+          const sign=dy>0?1:-1;
+          w.y+=oy/2*sign; b.y-=oy/2*sign;
+          w.vy=sign*Math.abs(w.vy)*.4; b.vy=-sign*Math.abs(b.vy)*.4;
+        }
+      }
+    }
+
+    // Fall off bottom
+    if(w.y > H+60){ w.alive=false; }
   }
-  // gentle repulsion between free words
-  const free = words.filter(w=>!w.formed);
-  for(let i=0;i<free.length;i++) for(let j=i+1;j<free.length;j++){
-    const a=free[i],b=free[j];
-    const dx=b.x-a.x+.01,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy);
-    if(d<88&&d>.5){ const f=(1-d/88)*.025; a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f; }
-  }
-  if(feedback.t>0) feedback.t=Math.max(0,feedback.t-dt*.03);
+
+  words = words.filter(w=>w.alive);
+
+  // Flash fade
+  if(flash.t>0) flash.t=Math.max(0,flash.t-dt*.035);
 }
 
 // ── DRAW ──────────────────────────────────────────
 function draw(){
-  ctx.fillStyle='#08080f'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=BG; ctx.fillRect(0,0,W,H);
 
-  // Formed cluster labels at bottom
-  const formedGroups=[...new Set(words.filter(w=>w.formed).map(w=>w.group))];
-  for(let fi=0;fi<formedGroups.length;fi++){
-    const gid=formedGroups[fi];
-    const g=(round===1?ROUND1:ROUND2).find(g=>g.id===gid);
-    const {cx,cy}=cornerPos(fi);
-    ctx.font='11px "Courier New",monospace';
-    ctx.fillStyle=g.col+'.5)';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('['+g.label+' · '+g.id+']', cx, cy-26);
+  // Context column background
+  ctx.fillStyle='rgba(200,255,80,.03)';
+  ctx.fillRect(slotX(),0,SLOT_W,H);
+  ctx.strokeStyle='rgba(200,255,80,.1)'; ctx.lineWidth=.5;
+  ctx.beginPath(); ctx.moveTo(slotX(),0); ctx.lineTo(slotX(),H); ctx.stroke();
+
+  // Context column label
+  ctx.save();
+  ctx.font='9px "Courier New",monospace';
+  ctx.fillStyle=LIME+'.25)';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('CONTEXT', slotX()+SLOT_W/2, 60);
+  ctx.restore();
+
+  // Slot dividers + compress flash
+  for(const s of slots){
+    if(s.compT>0){
+      ctx.fillStyle=RED+(s.compT*.35)+')';
+      ctx.fillRect(slotX()+1, s.y, SLOT_W-2, s.h);
+    }
+    ctx.strokeStyle=DIM+'.07)'; ctx.lineWidth=.4;
+    ctx.beginPath(); ctx.moveTo(slotX(),s.y+s.h); ctx.lineTo(W,s.y+s.h); ctx.stroke();
   }
 
-  // Feedback flash
-  if(feedback.t>0){
-    const a=Math.min(1,feedback.t)*.9;
-    ctx.font='bold 14px "Courier New",monospace';
-    ctx.fillStyle=(feedback.good?'rgba(200,255,80,':'rgba(255,80,80,')+a+')';
+  // HUD
+  ctx.font='10px "Courier New",monospace';
+  ctx.fillStyle=DIM+'.4)';
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('SCORE  '+score, 16, 18);
+
+  const t=timer|0;
+  ctx.textAlign='right';
+  ctx.fillStyle=(t<15?RED:DIM)+'.5)';
+  ctx.fillText((t<10?'00:0':'00:')+t, W-SLOT_W-12, 18);
+
+  // Compress countdown bar
+  const compP = compressTimer/COMPRESS_EVERY;
+  const barW  = (slotX()-32)*compP;
+  ctx.fillStyle=LIME+'.08)';
+  ctx.fillRect(16, H-6, barW, 3);
+  ctx.fillStyle=LIME+'.25)';
+  ctx.fillRect(16, H-6, barW, 1);
+
+  // Flash feedback
+  if(flash.t>0){
+    ctx.font='bold 13px "Courier New",monospace';
+    ctx.fillStyle=(flash.good?LIME:RED)+(flash.t*.85)+')';
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(feedback.msg, W/2, H*0.44);
+    ctx.fillText(flash.msg, slotX()/2, H*.42);
   }
 
   // Words
-  ctx.textAlign='center'; ctx.textBaseline='middle';
   for(const w of words){
-    const ox = w.shakeOff;
-    let fs, alpha, col;
-    if(w.formed){
-      fs=17; alpha=.2+w.formT*.55; col=w.col;
-    } else if(w.selected){
-      fs=18; alpha=.95; col=w.col;
-    } else {
-      fs=16; alpha=.45; col=WHITE;
-    }
-    ctx.font=`${fs}px "Courier New",monospace`;
-    ctx.fillStyle=col+alpha+')';
-    ctx.fillText(w.text, w.x+ox, w.y);
+    const a = w.dying ? Math.max(0,w.dieT)*.85
+            : w.saved  ? .75
+            : w.dragging ? .95
+            : Math.min(.85, w.age*.08 + .25);
 
-    // Selection ring
-    if(w.selected && !w.formed){
-      const tw=ctx.measureText(w.text).width;
-      ctx.strokeStyle=w.col+'.6)'; ctx.lineWidth=1.5;
-      ctx.strokeRect(w.x+ox-tw/2-8, w.y-12, tw+16, 24);
-    }
-  }
+    const col = w.important ? (w.saved?LIME:WHITE)
+              : DIM;
 
-  // Bottom separator line when clusters start forming
-  if(formedGroups.length>0){
-    ctx.strokeStyle=DIM+'.07)'; ctx.lineWidth=.5;
-    ctx.beginPath(); ctx.moveTo(0,H-58); ctx.lineTo(W,H-58); ctx.stroke();
+    ctx.font=`${w.fs}px 'Courier New',monospace`;
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+
+    // Selection glow for important unsaved words
+    if(w.important && !w.saved && !w.dying){
+      ctx.fillStyle=LIME+'.04)';
+      ctx.fillRect(w.x-2, w.y, w.w, w.h);
+    }
+
+    ctx.fillStyle=col+a+')';
+    ctx.fillText(w.text, w.x+6, w.y+w.h/2);
+
+    // Dot marker for important words
+    if(w.important && !w.saved){
+      ctx.beginPath();
+      ctx.arc(w.x+2, w.y+w.h/2, 2, 0, Math.PI*2);
+      ctx.fillStyle=LIME+Math.min(.7,a*1.2)+')';
+      ctx.fill();
+    }
   }
 }
 
-function cornerPos(i){
-  const cols=4, margin=W*.12, step=(W-margin*2)/3;
-  return { cx: margin+i*step, cy: H-32 };
-}
+// ── DRAG INPUT ────────────────────────────────────
+let dragWord  = null;
+let dragOffX  = 0, dragOffY  = 0;
+let pointerSX = 0, pointerSY = 0;
+let pointerDn = 0;
 
-// ── SELECTION + SUBMIT ─────────────────────────────
-function tapWord(wx, wy){
+canvas.addEventListener('pointerdown', e => {
   if(!alive) return;
-  // Find tapped word (generous radius)
-  let best=null, bestD=44;
+  canvas.setPointerCapture(e.pointerId);
+  const r  = canvas.getBoundingClientRect();
+  const px = e.clientX-r.left, py = e.clientY-r.top;
+  pointerSX=px; pointerSY=py; pointerDn=Date.now();
+
+  // Find word under pointer (largest font first = important)
+  let best=null, bestArea=0;
   for(const w of words){
-    if(w.formed) continue;
-    const d=Math.hypot(wx-w.x, wy-w.y);
-    if(d<bestD){ bestD=d; best=w; }
+    if(w.dying) continue;
+    if(px>=w.x && px<=w.x+w.w && py>=w.y && py<=w.y+w.h){
+      const area=w.w*w.h;
+      if(area>bestArea){ best=w; bestArea=area; }
+    }
   }
   if(!best) return;
 
-  if(best.selected){
-    best.selected=false;
-    selected=selected.filter(s=>s!==best);
-  } else {
-    if(selected.length>=4) return;
-    best.selected=true;
-    selected.push(best);
+  dragWord = best;
+  dragOffX = px - best.x;
+  dragOffY = py - best.y;
+  best.dragging = true;
+  best.pvx=0; best.pvy=0; best.ptT=Date.now(); best.ptX=px; best.ptY=py;
+
+  // Remove from slot if saved
+  if(best.saved){
+    const s = slots.find(s=>s.word===best);
+    if(s){ s.word=null; }
+    best.saved=false;
   }
-  updateSubmitBtn();
-}
+});
 
-function updateSubmitBtn(){
-  document.getElementById('btn-submit').style.display = selected.length===4 ? 'block' : 'none';
-}
+canvas.addEventListener('pointermove', e => {
+  if(!dragWord) return;
+  const r  = canvas.getBoundingClientRect();
+  const px = e.clientX-r.left, py = e.clientY-r.top;
+  const now = Date.now();
+  const dt2 = Math.max(1, now-dragWord.ptT);
+  dragWord.pvx = (px-dragWord.ptX)/dt2 * 16;
+  dragWord.pvy = (py-dragWord.ptY)/dt2 * 16;
+  dragWord.ptT=now; dragWord.ptX=px; dragWord.ptY=py;
+  dragWord.x = px - dragOffX;
+  dragWord.y = py - dragOffY;
+});
 
-function submitGuess(){
-  if(selected.length!==4||!alive) return;
-  // Check if all same group
-  const g=selected[0].group;
-  const correct=selected.every(w=>w.group===g);
-  if(correct){
-    // Success
-    const fi=[...new Set(words.filter(w=>w.formed).map(w=>w.group))].length;
-    const gDef=(round===1?ROUND1:ROUND2).find(d=>d.id===g);
-    for(let i=0;i<selected.length;i++){
-      const {cx,cy}=cornerPos(fi);
-      selected[i].formed=true; selected[i].formT=0;
-      selected[i].tx=cx+(i-1.5)*26; selected[i].ty=cy;
-    }
-    formed++;
-    feedback={msg:`[ ${gDef.label} · ${g} ] ✓`, t:1.4, good:true};
-    selected=[];
-    updateSubmitBtn();
-    if(formed>=4) setTimeout(()=>endGame(true),1200);
+canvas.addEventListener('pointerup', e => {
+  if(!dragWord) return;
+  const r  = canvas.getBoundingClientRect();
+  const px = e.clientX-r.left, py = e.clientY-r.top;
+  const isTap = Date.now()-pointerDn < DRAG_TAP_MS
+             && Math.hypot(px-pointerSX, py-pointerSY) < 10;
+
+  dragWord.dragging = false;
+
+  // Check if dropped in context zone
+  const inZone = dragWord.x+dragWord.w > slotX() && dragWord.x < W;
+  if(inZone){
+    saveWord(dragWord);
+  } else if(isTap && dragWord.important && !dragWord.saved){
+    // Tap shortcut: auto-save important word
+    saveWord(dragWord);
+    flashFeedback('SAVED', true);
   } else {
-    // Wrong
-    lives--;
-    for(const w of selected){ w.shakeT=1; w.selected=false; }
-    selected=[];
-    updateSubmitBtn();
-    // Check near-miss: how many same group?
-    const gc={};
-    for(const w of [...selected]) gc[w.group]=(gc[w.group]||0)+1;
-    feedback={msg:'× 不是同一类', t:1.2, good:false};
-    updateHUD();
-    if(lives<=0) setTimeout(()=>endGame(false),600);
+    // Throw with pointer velocity
+    dragWord.vx = dragWord.pvx * .55;
+    dragWord.vy = dragWord.pvy * .55;
+    // Clamp velocity
+    const sp = Math.sqrt(dragWord.vx**2+dragWord.vy**2);
+    if(sp > 12){ dragWord.vx=dragWord.vx/sp*12; dragWord.vy=dragWord.vy/sp*12; }
   }
-  updateHUD();
-}
 
-// ── HUD ───────────────────────────────────────────
-function hud(tl,tr,bl){
-  document.getElementById('hud-tl').innerHTML=tl.replace(/\n/g,'<br>');
-  document.getElementById('hud-tr').innerHTML=tr;
-  document.getElementById('hud-bl').innerHTML=bl||'';
-}
-
-function updateHUD(){
-  const hearts='♥'.repeat(lives)+'♡'.repeat(Math.max(0,4-lives));
-  const prog=`${formed} / 4 clusters`;
-  hud(`R${round} · CLUSTER\n${hearts}`, prog, selected.length>0?`已选 ${selected.length} / 4`:'点击词语选中');
-}
+  dragWord = null;
+});
 
 // ── GAME FLOW ─────────────────────────────────────
 function startGame(){
   document.getElementById('start').classList.add('gone');
-  round=1; lives=4; formed=0; selected=[];
-  makeWords(ROUND1);
-  alive=true;
-  updateHUD();
+  score=0; timer=90; alive=true;
+  words=[]; slots=[];
+  spawnInterval=0.5;
+  compressTimer=COMPRESS_EVERY;
+  buildWordPool();
+  initSlots();
 }
 
 function restartGame(){
-  document.getElementById('cmp-overlay').classList.add('gone');
-  round=1; lives=4; formed=0; selected=[];
-  makeWords(ROUND1);
-  alive=true;
-  updateHUD();
-  document.getElementById('btn-submit').style.display='none';
+  document.getElementById('end-overlay').classList.add('gone');
+  startGame();
 }
 
-function endGame(win){
+function endGame(){
   alive=false;
-  document.getElementById('btn-submit').style.display='none';
-  if(win && round===1){
-    // Advance to round 2
-    round=2; lives=4; formed=0; selected=[];
-    document.getElementById('cmp-kw').textContent='ROUND 1 CLEAR';
-    document.getElementById('cmp-body').textContent='基础语义空间已解析。第二轮词汇更模糊——同样的四个维度，但边界更难判断。';
-    document.getElementById('cmp-overlay').classList.remove('gone');
-    // Override AGAIN button to start R2
-    document.querySelector('#cmp-btns .btn').textContent='R2 →';
-    document.querySelector('#cmp-btns .btn').setAttribute('onpointerdown','startRound2()');
-  } else if(win && round===2){
-    document.getElementById('cmp-kw').textContent='COMPLETE';
-    document.getElementById('cmp-body').textContent='你在向量空间中识别出了 8 个语义簇。这就是 embedding 的本质：意义相近的词，在高维空间里距离更近。';
-    document.getElementById('cmp-overlay').classList.remove('gone');
-    document.querySelector('#cmp-btns .btn').textContent='AGAIN';
-    document.querySelector('#cmp-btns .btn').setAttribute('onpointerdown','restartGame()');
-  } else {
-    document.getElementById('cmp-kw').textContent='GAME OVER';
-    document.getElementById('cmp-body').textContent='命用尽。语义空间依然在等待被理解。';
-    document.getElementById('cmp-overlay').classList.remove('gone');
-    document.querySelector('#cmp-btns .btn').textContent='RETRY';
-    document.querySelector('#cmp-btns .btn').setAttribute('onpointerdown','restartGame()');
-  }
+  dragWord=null;
+  const win = score >= 12;
+  document.getElementById('end-title').textContent = win ? 'SURVIVED' : 'LOST';
+  document.getElementById('end-body').textContent =
+    `保住了 ${score} 个关键词。${win
+      ? '上下文完整性保持良好。'
+      : '太多重要信息在压缩中消失了。'}`;
+  document.getElementById('end-overlay').classList.remove('gone');
 }
-
-function startRound2(){
-  document.getElementById('cmp-overlay').classList.add('gone');
-  lives=4; formed=0; selected=[];
-  makeWords(ROUND2);
-  alive=true;
-  updateHUD();
-  document.getElementById('btn-submit').style.display='none';
-}
-
-// ── INPUT ─────────────────────────────────────────
-canvas.addEventListener('pointerdown', e => {
-  if(!alive) return;
-  const r = canvas.getBoundingClientRect();
-  tapWord(e.clientX-r.left, e.clientY-r.top);
-});
 
 // ── MAIN LOOP ─────────────────────────────────────
-let lastT=0;
+let lastT = 0;
 function loop(t){
-  const dt=Math.min((t-lastT)/16.67,3); lastT=t;
-  updateWords(dt);
+  const dt = Math.min((t-lastT)/16.67, 3); lastT=t;
+  if(alive) update(dt);
   draw();
   requestAnimationFrame(loop);
 }
