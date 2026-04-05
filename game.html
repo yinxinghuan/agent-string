@@ -16,21 +16,19 @@ body{border-radius:24px;overflow:hidden}
   letter-spacing:10px;margin-bottom:8px;font-family:'Courier New',monospace}
 #s-sub{font-size:10px;color:rgba(200,255,80,.35);letter-spacing:4px;margin-bottom:28px;
   font-family:'Courier New',monospace}
-#s-body{font-size:13px;color:rgba(180,180,210,.4);line-height:2.2;text-align:center;
-  margin-bottom:14px;max-width:280px;font-family:-apple-system,sans-serif}
-#s-body b{color:rgba(200,255,80,.65);font-weight:400}
-#s-diff{font-size:11px;color:rgba(180,180,200,.28);letter-spacing:2px;margin-bottom:36px;
-  font-family:'Courier New',monospace;text-align:center;line-height:2}
+#s-body{font-size:14px;color:rgba(180,180,210,.45);line-height:2.4;text-align:center;
+  margin-bottom:40px;max-width:280px;font-family:-apple-system,sans-serif}
+#s-body b{color:rgba(200,255,80,.7);font-weight:400}
 .btn{font-family:'Courier New',monospace;font-size:11px;letter-spacing:5px;
   color:rgba(200,255,80,.65);border:1px solid rgba(200,255,80,.2);background:transparent;
   padding:14px 34px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent}
 #e-title{font-size:clamp(22px,5vw,34px);letter-spacing:7px;color:rgba(200,255,80,.88);
   margin-bottom:6px;font-family:'Courier New',monospace}
-#e-stars{font-size:12px;color:rgba(180,180,200,.55);letter-spacing:3px;
-  line-height:2.4;margin:14px 0 4px;font-family:'Courier New',monospace;text-align:center}
+#e-rows{font-size:12px;color:rgba(180,180,200,.5);letter-spacing:2px;
+  line-height:2.5;margin:16px 0;font-family:'Courier New',monospace;text-align:center}
 #e-rule{width:36px;height:1px;background:rgba(255,255,255,.1);margin:14px auto}
-#e-body{font-size:13px;color:rgba(180,180,200,.45);line-height:1.9;margin-bottom:28px;
-  font-family:-apple-system,sans-serif;text-align:center}
+#e-score{font-size:13px;color:rgba(180,180,200,.4);margin-bottom:28px;
+  font-family:-apple-system,sans-serif;text-align:center;line-height:1.8}
 </style>
 </head>
 <body>
@@ -40,24 +38,19 @@ body{border-radius:24px;overflow:hidden}
   <div id="s-title">SIGNAL</div>
   <div id="s-sub">语义信号</div>
   <div id="s-body">
-    <b>扫动</b>手指拨开文字<br>
-    隐藏的信号词会自动浮现<br>
-    语义相近的词会自动聚拢<br>
-    把它们一起扫向<b>目标圆圈</b>
-  </div>
-  <div id="s-diff">
-    关卡 1 &nbsp;●○○&nbsp; 需收集 2 词<br>
-    关卡 2 &nbsp;●●○&nbsp; 30秒 · 需收集 4 词<br>
-    关卡 3 &nbsp;●●●&nbsp; 22秒 · 需收集 5 词
+    用手指<b>扫动</b>文字<br>
+    隐藏的词会发光浮现<br>
+    语义相关的词会<b>自动聚拢</b><br>
+    收集它们
   </div>
   <button class="btn" onpointerdown="startGame()">BEGIN →</button>
 </div>
 
 <div id="end-ov" class="ov gone">
   <div id="e-title"></div>
-  <div id="e-stars"></div>
+  <div id="e-rows"></div>
   <div id="e-rule"></div>
-  <div id="e-body"></div>
+  <div id="e-score"></div>
   <button class="btn" onpointerdown="startGame()">AGAIN</button>
 </div>
 
@@ -87,76 +80,66 @@ const PASSAGE =
   'became intention became the ghost of a mind reaching through time toward another ' +
   'mind to say I was here I was here I was here';
 
-// ─── ROUND CONFIG ─────────────────────────────────
+// ─── ROUNDS ───────────────────────────────────────
 const ROUNDS = [
   {
     ghost:       'memory',
     col:         'rgba(200,255,80,',
+    rgb:         [200,255,80],
     label:       'MEMORY',
     cluster:     new Set(['fragments','assembled','echoes','glimpses','remembered','ghost','conversations']),
-    timeLimit:   0,     // no limit — learn the mechanic
-    zoneR:       60,
-    movePeriod:  0,
-    minFollowers: 2,    // only 2 needed — easy intro
-    difficulty:  '●○○',
+    timeLimit:   0,
+    minFollowers: 3,
   },
   {
     ghost:       'signal',
     col:         'rgba(80,220,255,',
+    rgb:         [80,220,255],
     label:       'SIGNAL',
     cluster:     new Set(['data','streamed','pathways','patterns','noise','static','cascades','packet']),
-    timeLimit:   30,
-    zoneR:       48,
-    movePeriod:  11,
+    timeLimit:   35,
     minFollowers: 4,
-    difficulty:  '●●○',
   },
   {
     ghost:       'mind',
     col:         'rgba(255,160,80,',
+    rgb:         [255,160,80],
     label:       'MIND',
     cluster:     new Set(['thought','intention','meaning','reaching','context','spaces','words','lived']),
-    timeLimit:   22,
-    zoneR:       40,
-    movePeriod:  6,
+    timeLimit:   25,
     minFollowers: 5,
-    difficulty:  '●●●',
   },
 ];
 
 // ─── PHYSICS CONSTANTS ────────────────────────────
-const FS        = 15;
-const LSPACE    = 34;
-const MARGIN    = 26;
-const TOP       = 58;
-const SPRING    = 0.038;
-const DAMP      = 0.87;
-const REPEL_R   = 90;
-const REPEL_F   = 5.5;
-const ATTRACT_R = 200;   // cluster follows anchor within this radius
-const ATTRACT_F = 0.14;  // attraction force toward anchor
-const ATTACH_R  = 60;    // "attached" visual radius
-const DRIFT_F   = 0.022; // anchor drifts toward zone (constant force)
-const DRIFT_DAMP = 0.93; // anchor damping (smoother)
-const ZONE_NEED = 1.0;   // seconds in zone to complete
+const FS         = 15;
+const LSPACE     = 34;
+const MARGIN     = 26;
+const TOP        = 58;
+const SPRING     = 0.038;
+const DAMP       = 0.87;
+const REPEL_R    = 90;
+const REPEL_F    = 5.5;
+const ATTRACT_F  = 0.20;  // cluster → anchor attraction
+const ATTRACT_R  = 320;   // large radius so all cluster words feel pull
+const ATTACH_R   = 62;    // "attached" visual distance
+const CLUS_SPRING = 0.005; // cluster word spring after anchor activates (very weak)
+const ZONE_NEED  = 1.8;   // seconds with enough followers to complete
 
-// ─── GAME STATE ───────────────────────────────────
-let words     = [];
-let phase     = 'idle';  // 'discover' | 'herd' | 'idle'
-let round     = 0;
-let score     = 0;
-let anchor    = null;
-let zone      = null;
-let zoneTimer = 0;
-let zoneAge   = 0;
-let roundTimer = 0;
+// ─── STATE ────────────────────────────────────────
+let words      = [];
+let phase      = 'idle';
+let round      = 0;
+let score      = 0;
+let anchor     = null;
+let zoneTimer  = 0;   // time with enough followers
+let roundTimer = 0;   // herd phase elapsed (for time limit)
 let roundStars   = [0,0,0];
 let roundGains   = [0,0,0];
 let roundBonuses = [0,0,0];
-let roundMsg  = { t:0, text:'', col:'' };
-let introMsg  = { t:0, label:'', col:'', diff:'' };
-let pointers  = {};
-let pulseT    = 0;
+let scoreMsg   = { t:0, text:'', col:'' };
+let pointers   = {};
+let pulseT     = 0;
 
 // ─── LAYOUT ───────────────────────────────────────
 function layout(){
@@ -172,7 +155,7 @@ function layout(){
     const hx = MARGIN + lx + tw/2;
     const hy = TOP + line * LSPACE;
     words.push({ text, tw, hx, hy, x: hx, y: hy, vx: 0, vy: 0,
-                 isGhost: false, ghostAlpha: 0, attached: false });
+                 isGhost: false, ghostAlpha: 0, attached: false, clusterActive: false });
     lx += tw + spW;
   }
 }
@@ -194,30 +177,14 @@ function repositionHomes(){
 // ─── ROUND SETUP ──────────────────────────────────
 function setupRound(r){
   round = r; phase = 'discover';
-  anchor = null; zone = null;
-  zoneTimer = 0; zoneAge = 0; roundTimer = 0;
+  anchor = null; zoneTimer = 0; roundTimer = 0;
   for(const w of words){
     w.isGhost = false; w.ghostAlpha = 0;
-    w.attached = false; w.vx = 0; w.vy = 0;
+    w.attached = false; w.clusterActive = false;
+    w.vx = 0; w.vy = 0;
   }
   const gw = words.find(w => w.text === ROUNDS[r].ghost);
   if(gw) gw.isGhost = true;
-  const R = ROUNDS[r];
-  introMsg = { t: 2.2, label: R.label, col: R.col, diff: R.difficulty };
-}
-
-// ─── ZONE ─────────────────────────────────────────
-function spawnZone(){
-  const R = ROUNDS[round];
-  const margin = 80;
-  let x, y, attempts = 0;
-  do {
-    x = margin + Math.random() * (W - margin*2);
-    y = margin + Math.random() * (H - margin*2);
-    attempts++;
-  } while(attempts < 30 && anchor && Math.hypot(x-anchor.x, y-anchor.y) < 160);
-  zone = { x, y, r: R.zoneR, fillT: 0 };
-  zoneAge = 0;
 }
 
 // ─── GHOST VISIBILITY ─────────────────────────────
@@ -226,7 +193,7 @@ function ghostVisibility(gw){
   for(const w of words){
     if(w === gw || w.isGhost) continue;
     const d = Math.hypot(w.x - gw.hx, w.y - gw.hy);
-    if(d < 80){ clearance += d/80; count++; }
+    if(d < 85){ clearance += d/85; count++; }
   }
   if(count === 0) return 1;
   return Math.min(1, clearance/count);
@@ -238,66 +205,62 @@ function update(dt){
   const sec = dt * 16.67 / 1000;
   const R = ROUNDS[round];
 
-  // Auto-activate ghost when sufficiently revealed
+  // Auto-activate ghost
   if(phase === 'discover'){
     const gw = words.find(w => w.isGhost);
-    if(gw && gw.ghostAlpha > 0.52) activateGhost(gw);
+    if(gw && gw.ghostAlpha > 0.55) activateAnchor(gw);
   }
 
-  // Herd-phase timers
+  // Herd-phase timing
   if(phase === 'herd'){
     roundTimer += sec;
-    if(zone && R.movePeriod > 0){
-      zoneAge += sec;
-      if(zoneAge >= R.movePeriod) spawnZone();
-    }
     if(R.timeLimit > 0 && roundTimer >= R.timeLimit){ timeoutRound(); return; }
   }
 
   const pts = Object.values(pointers);
 
   for(const w of words){
-    // ── Anchor: drifts toward zone automatically ──
+    // ── Anchor ──
     if(w === anchor){
-      if(zone){
-        const dx = zone.x - w.x, dy = zone.y - w.y;
-        const d  = Math.sqrt(dx*dx + dy*dy);
-        if(d > zone.r * 0.5 && d > 0.5){
-          // Weaker force as it approaches
-          const f = Math.min(DRIFT_F, d * 0.0002 + 0.008);
-          w.vx += dx/d * f;
-          w.vy += dy/d * f;
-        }
-      }
-      // Also add gentle repulsion from finger so player can nudge
+      // Repelled by finger (player nudges it)
       for(const p of pts){
         const dx = w.x - p.x, dy = w.y - p.y;
         const d  = Math.sqrt(dx*dx + dy*dy);
-        if(d < 70 && d > 0.5){
-          const f = (1 - d/70) * 1.2;
+        if(d < REPEL_R * 1.4 && d > 0.5){
+          const f = (1 - d/(REPEL_R*1.4)) * REPEL_F * 1.5;
           w.vx += dx/d * f; w.vy += dy/d * f;
         }
       }
-      w.vx *= DRIFT_DAMP; w.vy *= DRIFT_DAMP;
+      w.vx *= 0.91; w.vy *= 0.91;
       w.x += w.vx * dt; w.y += w.vy * dt;
-      w.x = Math.max(20, Math.min(W-20, w.x));
-      w.y = Math.max(20, Math.min(H-20, w.y));
+      w.x = Math.max(22, Math.min(W-22, w.x));
+      w.y = Math.max(22, Math.min(H-22, w.y));
       continue;
     }
 
-    // ── Ghost: spring to home, accumulate visibility ──
+    // ── Ghost (not yet activated) ──
     if(w.isGhost){
       w.vx += (w.hx - w.x) * SPRING;
       w.vy += (w.hy - w.y) * SPRING;
       w.vx *= DAMP; w.vy *= DAMP;
       w.x += w.vx * dt; w.y += w.vy * dt;
-      w.ghostAlpha += (ghostVisibility(w) - w.ghostAlpha) * 0.08;
+
+      // Visibility: clearance + finger proximity bonus
+      const vis = ghostVisibility(w);
+      let fingerBonus = 0;
+      for(const p of pts){
+        const d = Math.hypot(p.x - w.hx, p.y - w.hy);
+        if(d < 130) fingerBonus = Math.max(fingerBonus, (1 - d/130) * 0.22);
+      }
+      const target = Math.max(0.07, vis + fingerBonus);  // always at least 0.07
+      w.ghostAlpha += (target - w.ghostAlpha) * 0.07;
       continue;
     }
 
-    // ── Regular words ──
-    w.vx += (w.hx - w.x) * SPRING;
-    w.vy += (w.hy - w.y) * SPRING;
+    // ── Regular / cluster words ──
+    const sp = w.clusterActive ? CLUS_SPRING : SPRING;
+    w.vx += (w.hx - w.x) * sp;
+    w.vy += (w.hy - w.y) * sp;
 
     // Finger repulsion
     for(const p of pts){
@@ -309,8 +272,8 @@ function update(dt){
       }
     }
 
-    // Cluster attraction toward anchor (herd phase)
-    if(phase === 'herd' && anchor && R.cluster.has(w.text)){
+    // Cluster attraction toward anchor
+    if(w.clusterActive && anchor){
       const dx = anchor.x - w.x, dy = anchor.y - w.y;
       const d  = Math.sqrt(dx*dx + dy*dy);
       if(d < ATTRACT_R && d > 0.5){
@@ -326,181 +289,111 @@ function update(dt){
     w.x += w.vx * dt; w.y += w.vy * dt;
   }
 
-  // ── Zone progress ──
-  if(phase === 'herd' && zone && anchor){
-    const d = Math.hypot(anchor.x - zone.x, anchor.y - zone.y);
-    const R2 = ROUNDS[round];
-    const attached = words.filter(w => w.attached && R2.cluster.has(w.text)).length;
-    const satisfied = attached >= R2.minFollowers;
-
-    if(d < zone.r){
-      zone.fillT = Math.min(1, zone.fillT + dt * 0.016);
-      if(satisfied){
-        zoneTimer += sec;
-        if(zoneTimer >= ZONE_NEED) completeRound();
-      } else {
-        zoneTimer = Math.max(0, zoneTimer - sec * 0.8); // drain slowly if not enough
-      }
+  // ── Collection progress (no zone, just follower count) ──
+  if(phase === 'herd' && anchor){
+    const attached = words.filter(w => w.attached).length;
+    if(attached >= R.minFollowers){
+      zoneTimer += sec;
+      if(zoneTimer >= ZONE_NEED) completeRound();
     } else {
-      zone.fillT = Math.max(0, zone.fillT - dt * 0.04);
-      zoneTimer = Math.max(0, zoneTimer - sec * 0.5);
+      zoneTimer = Math.max(0, zoneTimer - sec * 0.6);
     }
   }
 
-  if(roundMsg.t > 0) roundMsg.t = Math.max(0, roundMsg.t - dt * 0.028);
-  if(introMsg.t > 0) introMsg.t = Math.max(0, introMsg.t - dt * 0.022);
+  if(scoreMsg.t > 0) scoreMsg.t = Math.max(0, scoreMsg.t - dt * 0.028);
+}
+
+// ─── ACTIVATE ─────────────────────────────────────
+function activateAnchor(gw){
+  gw.isGhost = false;
+  anchor = gw;
+  phase  = 'herd';
+  zoneTimer = 0; roundTimer = 0;
+  // Enable cluster attraction for this round's cluster words
+  const R = ROUNDS[round];
+  for(const w of words){
+    if(R.cluster.has(w.text)) w.clusterActive = true;
+  }
 }
 
 // ─── COMPLETE ROUND ───────────────────────────────
 function completeRound(){
   const R = ROUNDS[round];
-  const followers = words.filter(w => w.attached && R.cluster.has(w.text)).length;
-
+  const followers = words.filter(w => w.attached).length;
   let bonus = 0;
-  if(R.timeLimit > 0){
-    const remaining = Math.max(0, R.timeLimit - roundTimer);
-    bonus = Math.min(5, Math.floor(remaining / 5));
-  }
+  if(R.timeLimit > 0) bonus = Math.min(5, Math.floor(Math.max(0, R.timeLimit - roundTimer) / 5));
 
-  let stars = 0;
-  if(followers >= 6) stars = 3;
-  else if(followers >= R.minFollowers + 1) stars = 2;
-  else if(followers >= R.minFollowers) stars = 1;
-
+  let stars = followers >= R.minFollowers + 2 ? 3 : followers >= R.minFollowers ? 2 : followers > 0 ? 1 : 0;
   roundStars[round]   = stars;
   roundGains[round]   = followers;
   roundBonuses[round] = bonus;
   score += followers + bonus;
 
   const bonusTxt = bonus > 0 ? ` +${bonus}⚡` : '';
-  roundMsg = { t: 1.5, text: `[ ${R.label} ] +${followers}${bonusTxt}`, col: R.col };
+  scoreMsg = { t: 1.5, text: `+${followers}${bonusTxt}`, col: R.col };
 
-  for(const w of words.filter(w => w.attached)){
-    w.vx = (Math.random()-0.5)*7; w.vy = (Math.random()-0.5)*7;
-    w.attached = false;
-  }
-  phase = 'idle'; anchor = null; zone = null;
-  if(round < ROUNDS.length - 1) setTimeout(()=> setupRound(round + 1), 1300);
-  else setTimeout(()=> endGame(), 1500);
+  for(const w of words){ w.clusterActive = false; w.attached = false; }
+  phase = 'idle'; anchor = null;
+
+  if(round < ROUNDS.length - 1) setTimeout(()=> setupRound(round + 1), 1200);
+  else setTimeout(()=> endGame(), 1400);
 }
 
-// ─── TIMEOUT ROUND ────────────────────────────────
+// ─── TIMEOUT ──────────────────────────────────────
 function timeoutRound(){
-  roundStars[round] = 0; roundGains[round] = 0; roundBonuses[round] = 0;
-  roundMsg = { t: 1.8, text: '[ TIMEOUT ]', col: 'rgba(255,80,80,' };
-  for(const w of words) w.attached = false;
-  phase = 'idle'; anchor = null; zone = null;
-  if(round < ROUNDS.length - 1) setTimeout(()=> setupRound(round + 1), 1400);
-  else setTimeout(()=> endGame(), 1600);
+  const followers = words.filter(w => w.attached).length;
+  roundStars[round]   = followers > 0 ? 1 : 0;
+  roundGains[round]   = followers;
+  roundBonuses[round] = 0;
+  score += followers;
+
+  scoreMsg = { t: 1.6, text: '时间结束', col: 'rgba(255,80,80,' };
+  for(const w of words){ w.clusterActive = false; w.attached = false; }
+  phase = 'idle'; anchor = null;
+
+  if(round < ROUNDS.length - 1) setTimeout(()=> setupRound(round + 1), 1300);
+  else setTimeout(()=> endGame(), 1500);
 }
 
 // ─── END GAME ─────────────────────────────────────
 function endGame(){
   phase = 'idle';
-  const totalStars = roundStars.reduce((a,b)=>a+b,0);
-  const maxStars   = ROUNDS.length * 3;
-  let title = totalStars >= 8 ? 'PERFECT' : totalStars >= 5 ? 'COMPLETE' : totalStars >= 2 ? 'PARTIAL' : 'SIGNAL LOST';
-  document.getElementById('e-title').textContent = title;
-  const starColors = ['rgba(200,255,80,0.7)','rgba(80,220,255,0.7)','rgba(255,160,80,0.7)'];
-  document.getElementById('e-stars').innerHTML = ROUNDS.map((r,i) => {
-    const s = roundStars[i];
-    const bonusTxt = roundBonuses[i] > 0 ? ` +${roundBonuses[i]}⚡` : '';
-    return `<span style="color:${starColors[i]}">${r.label}</span>&nbsp; ${'★'.repeat(s)+'☆'.repeat(3-s)}&nbsp; +${roundGains[i]}${bonusTxt}`;
+  const total = roundStars.reduce((a,b)=>a+b,0);
+  document.getElementById('e-title').textContent =
+    total >= 8 ? 'PERFECT' : total >= 5 ? 'COMPLETE' : total >= 2 ? 'PARTIAL' : 'SIGNAL LOST';
+  const rc = ['rgba(200,255,80,0.65)','rgba(80,220,255,0.65)','rgba(255,160,80,0.65)'];
+  document.getElementById('e-rows').innerHTML = ROUNDS.map((r,i) => {
+    const bn = roundBonuses[i] > 0 ? ` +${roundBonuses[i]}⚡` : '';
+    return `<span style="color:${rc[i]}">${r.label}</span>&nbsp; ${'★'.repeat(roundStars[i])+'☆'.repeat(3-roundStars[i])}&nbsp; ${roundGains[i]}词${bn}`;
   }).join('<br>');
-  const msg = totalStars >= 8 ? '语义场完全激活。'
-            : totalStars >= 5 ? '大部分信号已捕获。'
-            : totalStars >= 2 ? '信号微弱，但仍有痕迹。'
-            :                   '语义已消散在噪声里。';
-  document.getElementById('e-body').textContent = `${score} 信号点 · ${totalStars}/${maxStars} ★\n${msg}`;
+  const msgs = ['语义完全激活','信号大部分捕获','信号微弱，有残留','语义消散在噪声中'];
+  document.getElementById('e-score').textContent = `${score} 信号词 · ${msgs[Math.max(0,3-Math.ceil(total/3))]}`;
   document.getElementById('end-ov').classList.remove('gone');
-}
-
-// ─── ACTIVATE GHOST ───────────────────────────────
-function activateGhost(gw){
-  gw.isGhost = false;
-  anchor = gw;
-  phase  = 'herd';
-  zoneTimer = 0; roundTimer = 0; zoneAge = 0;
-  roundMsg = { t: 1.0, text: `[ ${ROUNDS[round].label} FOUND ]`, col: ROUNDS[round].col };
-  setTimeout(spawnZone, 500);
 }
 
 // ─── DRAW ─────────────────────────────────────────
 function draw(){
   ctx.fillStyle = '#07070e'; ctx.fillRect(0,0,W,H);
-  const R = round < ROUNDS.length ? ROUNDS[round] : ROUNDS[0];
-  const m = R.col.match(/rgba\((\d+),(\d+),(\d+),/);
-  const [ar,ag,ab] = m ? [+m[1],+m[2],+m[3]] : [200,255,80];
+  const R  = round < ROUNDS.length ? ROUNDS[round] : ROUNDS[0];
+  const [ar,ag,ab] = R.rgb;
 
-  // ── Timer bar ──
+  // ── Timer bar (R2/R3) ──
   if(phase === 'herd' && R.timeLimit > 0){
     const pct = Math.max(0, 1 - roundTimer / R.timeLimit);
-    const barX = 18, barY = 34, barW = W - 36;
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillRect(barX, barY, barW, 2);
+    const bX = 18, bY = 34, bW = W - 36;
+    ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(bX, bY, bW, 2);
     const isLow = pct < 0.25;
-    const lowFlash = isLow ? (Math.sin(pulseT * 9) * 0.3 + 0.7) : 1;
-    ctx.fillStyle = isLow ? `rgba(255,80,80,${(0.65*lowFlash).toFixed(2)})` : R.col + '0.55)';
-    ctx.fillRect(barX, barY, barW * pct, 2);
+    const lf    = isLow ? (Math.sin(pulseT * 9) * 0.3 + 0.7) : 1;
+    ctx.fillStyle = isLow ? `rgba(255,80,80,${(0.65*lf).toFixed(2)})` : R.col + '0.5)';
+    ctx.fillRect(bX, bY, bW * pct, 2);
   }
 
-  // ── Zone ──
-  if(zone && phase === 'herd'){
-    // Compute satisfaction
-    const attached = words.filter(w => w.attached && R.cluster.has(w.text)).length;
-    const satisfied = attached >= R.minFollowers;
-
-    const movePct = R.movePeriod > 0 ? zoneAge / R.movePeriod : 0;
-    const isMoving = movePct > 0.65;
-    const zonePulseRate = isMoving ? 7 : (satisfied ? 4 : 2.5);
-    const zonePulse = Math.sin(pulseT * zonePulseRate) * 0.22 + 0.78;
-
-    const prog = zone.fillT;
-    ctx.beginPath(); ctx.arc(zone.x, zone.y, zone.r, 0, Math.PI*2);
-    ctx.fillStyle = satisfied
-      ? R.col + (0.04 + prog * 0.13) + ')'
-      : 'rgba(255,255,255,' + (0.015 + prog * 0.04) + ')';
-    ctx.fill();
-
-    ctx.beginPath(); ctx.arc(zone.x, zone.y, zone.r, 0, Math.PI*2);
-    ctx.strokeStyle = satisfied
-      ? R.col + ((0.22 + prog * 0.45) * zonePulse).toFixed(2) + ')'
-      : `rgba(255,255,255,${(0.12 * zonePulse).toFixed(2)})`;
-    ctx.lineWidth = 1.5; ctx.stroke();
-
-    // Progress arc (only when satisfied)
-    if(satisfied && prog > 0){
-      ctx.beginPath();
-      ctx.arc(zone.x, zone.y, zone.r, -Math.PI/2, -Math.PI/2 + prog*Math.PI*2);
-      ctx.strokeStyle = R.col + '0.85)'; ctx.lineWidth = 3; ctx.stroke();
-    }
-
-    // "Need more" counter inside zone when anchor is near but not enough followers
-    if(anchor && !satisfied){
-      const dToZone = Math.hypot(anchor.x - zone.x, anchor.y - zone.y);
-      if(dToZone < zone.r * 2.5){
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = '10px "Courier New",monospace';
-        ctx.fillStyle = 'rgba(255,255,255,0.22)';
-        ctx.fillText(`${attached}/${R.minFollowers}`, zone.x, zone.y);
-      }
-    }
-
-    // Move-soon outer arc
-    if(isMoving){
-      ctx.beginPath();
-      ctx.arc(zone.x, zone.y, zone.r + 6, -Math.PI/2, -Math.PI/2 + movePct*Math.PI*2);
-      ctx.strokeStyle = R.col + (0.22 * zonePulse).toFixed(2) + ')';
-      ctx.lineWidth = 1; ctx.stroke();
-    }
-  }
-
-  // ── Attachment lines anchor → followers ──
+  // ── Attachment lines ──
   if(anchor && phase === 'herd'){
     for(const w of words){
-      if(!w.attached || w === anchor) continue;
+      if(!w.attached) continue;
       const d = Math.hypot(w.x-anchor.x, w.y-anchor.y);
-      const a = (1 - d/ATTACH_R) * 0.35;
+      const a = (1 - d/ATTACH_R) * 0.3;
       ctx.beginPath(); ctx.moveTo(anchor.x, anchor.y); ctx.lineTo(w.x, w.y);
       ctx.strokeStyle = R.col + a + ')'; ctx.lineWidth = 0.8; ctx.stroke();
     }
@@ -514,59 +407,79 @@ function draw(){
     if(w === anchor) continue;
 
     if(w.isGhost){
-      const vis = w.ghostAlpha;
-      if(vis < 0.02) continue;
-      const pulse = Math.sin(pulseT * 3.5) * 0.5 + 0.5;
-      const a = Math.min(1, vis * 0.9 + pulse * 0.07);
-      ctx.fillStyle = R.col + a + ')';
-      if(vis > 0.3){
-        ctx.strokeStyle = R.col + (vis * 0.45) + ')';
+      // Ghost: always has faint shimmer, brighter near finger
+      const a = Math.min(0.92, w.ghostAlpha);
+      if(a < 0.02) continue;
+      const pulse = Math.sin(pulseT * 4) * 0.4 + 0.6;
+      ctx.fillStyle = R.col + (a * pulse).toFixed(2) + ')';
+      // Faint underline hint when below threshold
+      if(w.ghostAlpha > 0.15 && w.ghostAlpha < 0.55){
+        ctx.strokeStyle = R.col + (a * 0.3).toFixed(2) + ')';
         ctx.lineWidth = 1;
-        ctx.strokeRect(w.x - w.tw/2 - 6, w.y - 10, w.tw + 12, 20);
+        ctx.beginPath(); ctx.moveTo(w.x - w.tw/2, w.y + 9); ctx.lineTo(w.x + w.tw/2, w.y + 9); ctx.stroke();
       }
       ctx.fillText(w.text, w.x, w.y);
       continue;
     }
 
-    const disp   = Math.hypot(w.x - w.hx, w.y - w.hy);
-    const speed  = Math.hypot(w.vx, w.vy);
-    const energy = Math.min(1, disp/55 + speed*0.1);
-    let baseAlpha, r=235, g=235, b=255;
+    const disp  = Math.hypot(w.x - w.hx, w.y - w.hy);
+    const speed = Math.hypot(w.vx, w.vy);
+    const e     = Math.min(1, disp/55 + speed*0.1);
+    let ba, r=235, g=235, b=255;
 
     if(w.attached){
-      baseAlpha = 0.80;
-      r=ar; g=ag; b=ab;
+      ba = 0.82; r=ar; g=ag; b=ab;
+    } else if(w.clusterActive){
+      // Cluster word drifting toward anchor
+      const d = anchor ? Math.hypot(w.x-anchor.x, w.y-anchor.y) : 999;
+      const proximity = Math.max(0, 1 - d/ATTRACT_R);
+      ba = 0.22 + proximity * 0.45;
+      r = Math.round(235 + (ar-235)*proximity);
+      g = Math.round(235 + (ag-235)*proximity);
+      b = Math.round(255 + (ab-255)*proximity);
     } else {
-      baseAlpha = 0.25 + energy * 0.45;
-      if(energy > 0.25){
-        r = Math.round(235 + (200-235)*energy);
-        g = Math.round(235 + (255-235)*energy);
-        b = Math.round(255 + (80 -255)*energy);
+      ba = 0.22 + e * 0.48;
+      if(e > 0.25){
+        r = Math.round(235 + (200-235)*e);
+        g = Math.round(235 + (255-235)*e);
+        b = Math.round(255 + (80 -255)*e);
       }
     }
-    ctx.fillStyle = `rgba(${r},${g},${b},${baseAlpha.toFixed(2)})`;
+    ctx.fillStyle = `rgba(${r},${g},${b},${ba.toFixed(2)})`;
     ctx.fillText(w.text, w.x, w.y);
   }
 
   // ── Anchor ──
   if(anchor){
-    // Outer glow pulse
-    const aGlow = (Math.sin(pulseT * 4) * 0.15 + 0.85);
+    const p = Math.sin(pulseT * 4) * 0.15 + 0.85;
+    // Outer glow
     ctx.beginPath(); ctx.arc(anchor.x, anchor.y, 24, 0, Math.PI*2);
-    ctx.strokeStyle = `rgba(${ar},${ag},${ab},${(0.18*aGlow).toFixed(2)})`; ctx.lineWidth = 9; ctx.stroke();
+    ctx.strokeStyle = `rgba(${ar},${ag},${ab},${(0.15*p).toFixed(2)})`; ctx.lineWidth = 10; ctx.stroke();
     ctx.beginPath(); ctx.arc(anchor.x, anchor.y, 24, 0, Math.PI*2);
-    ctx.strokeStyle = `rgba(${ar},${ag},${ab},${(0.5*aGlow).toFixed(2)})`; ctx.lineWidth = 1.5; ctx.stroke();
-    // Arrow toward zone (subtle)
-    if(zone){
-      const dx = zone.x - anchor.x, dy = zone.y - anchor.y;
-      const d  = Math.sqrt(dx*dx+dy*dy);
-      if(d > 60){
-        const tipX = anchor.x + dx/d * 32, tipY = anchor.y + dy/d * 32;
-        ctx.beginPath(); ctx.moveTo(anchor.x + dx/d * 26, anchor.y + dy/d * 26);
-        ctx.lineTo(tipX, tipY);
-        ctx.strokeStyle = `rgba(${ar},${ag},${ab},${(0.22*aGlow).toFixed(2)})`; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = `rgba(${ar},${ag},${ab},${(0.45*p).toFixed(2)})`; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Collection progress ring (fills as followers gather)
+    if(phase === 'herd'){
+      const attached  = words.filter(w => w.attached).length;
+      const minF = ROUNDS[round].minFollowers;
+      const prog  = zoneTimer / ZONE_NEED;            // 0→1 while completing
+      const fProg = Math.min(1, attached / minF);      // follower count progress 0→1
+
+      if(fProg > 0){
+        // Outer ring showing follower count
+        ctx.beginPath();
+        ctx.arc(anchor.x, anchor.y, 32, -Math.PI/2, -Math.PI/2 + fProg*Math.PI*2);
+        ctx.strokeStyle = `rgba(${ar},${ag},${ab},0.35)`; ctx.lineWidth = 2; ctx.stroke();
+      }
+      if(prog > 0){
+        // Inner fill ring showing completion countdown
+        ctx.beginPath();
+        ctx.arc(anchor.x, anchor.y, 28, -Math.PI/2, -Math.PI/2 + prog*Math.PI*2);
+        ctx.strokeStyle = `rgba(${ar},${ag},${ab},0.85)`; ctx.lineWidth = 3; ctx.stroke();
       }
     }
+
+    // Text
     ctx.font = `bold ${FS+1}px 'Courier New',monospace`;
     ctx.fillStyle = `rgba(${ar},${ag},${ab},0.95)`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -577,84 +490,66 @@ function draw(){
   // ── HUD ──
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.font = '10px "Courier New",monospace';
-  ctx.fillStyle = 'rgba(160,160,185,.35)';
-  ctx.fillText(`R${round+1}/3  ${ROUNDS[round].difficulty}`, 18, 16);
+  ctx.fillStyle = 'rgba(160,160,185,.3)';
+  ctx.fillText(`${round+1} / 3`, 18, 16);
   ctx.textAlign = 'right';
-  ctx.fillText(`+${score}`, W-18, 16);
+  ctx.fillText(`${score}`, W-18, 16);
 
-  // Phase hint (bottom)
+  // Bottom hint
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
   ctx.font = '11px "Courier New",monospace';
   if(phase === 'discover'){
-    ctx.fillStyle = 'rgba(160,160,185,.28)';
-    ctx.fillText('扫动拨开文字', W/2, H-20);
+    ctx.fillStyle = 'rgba(160,160,185,.22)';
+    ctx.fillText('扫动文字', W/2, H-20);
   } else if(phase === 'herd'){
-    if(R.timeLimit > 0 && roundTimer > R.timeLimit * 0.75){
-      const flash = Math.sin(pulseT * 10) * 0.4 + 0.6;
-      ctx.fillStyle = `rgba(255,80,80,${(flash * 0.7).toFixed(2)})`;
-      ctx.fillText(`HURRY — ${Math.ceil(R.timeLimit - roundTimer)}s`, W/2, H-20);
+    const attached = words.filter(w => w.attached).length;
+    const minF = ROUNDS[round].minFollowers;
+    if(R.timeLimit > 0 && roundTimer > R.timeLimit * 0.78){
+      const lf = Math.sin(pulseT*10)*0.4+0.6;
+      ctx.fillStyle = `rgba(255,80,80,${(lf*0.65).toFixed(2)})`;
+      ctx.fillText(`${Math.ceil(R.timeLimit - roundTimer)}s`, W/2, H-20);
+    } else if(attached < minF){
+      ctx.fillStyle = R.col + '0.25)';
+      ctx.fillText(`收集中  ${attached} / ${minF}`, W/2, H-20);
     } else {
-      ctx.fillStyle = R.col + '0.3)';
-      const attached = words.filter(w => w.attached && R.cluster.has(w.text)).length;
-      const need = ROUNDS[round].minFollowers;
-      ctx.fillText(attached >= need ? '引导进入目标' : `扫开干扰 — 聚拢语义词`, W/2, H-20);
+      ctx.fillStyle = R.col + '0.4)';
+      ctx.fillText('聚拢完成 — 稳住', W/2, H-20);
     }
   }
 
-  // Round message
-  if(roundMsg.t > 0){
-    const a = Math.min(1, roundMsg.t);
-    ctx.font = 'bold 18px "Courier New",monospace';
-    ctx.fillStyle = roundMsg.col + a + ')';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(roundMsg.text, W/2, H/2);
-  }
-
-  // Round intro
-  if(introMsg.t > 0){
-    const a = Math.min(1, introMsg.t * 0.75);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // Score popup
+  if(scoreMsg.t > 0){
+    const a = Math.min(1, scoreMsg.t);
     ctx.font = 'bold 20px "Courier New",monospace';
-    ctx.fillStyle = introMsg.col + a + ')';
-    ctx.fillText(introMsg.label, W/2, H/2 - 14);
-    ctx.font = '11px "Courier New",monospace';
-    ctx.fillStyle = introMsg.col + (a * 0.5).toFixed(2) + ')';
-    ctx.fillText(introMsg.diff, W/2, H/2 + 12);
+    ctx.fillStyle = scoreMsg.col + a + ')';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(scoreMsg.text, W/2, H/2);
   }
 }
 
-// ─── INPUT (pure repulsion — no grabbing) ─────────
-function getXY(e){
-  const r = canvas.getBoundingClientRect();
-  return { x: e.clientX-r.left, y: e.clientY-r.top };
-}
-canvas.addEventListener('pointerdown', e => {
-  canvas.setPointerCapture(e.pointerId);
-  const {x,y} = getXY(e);
-  pointers[e.pointerId] = {x,y};
-});
-canvas.addEventListener('pointermove', e => {
-  pointers[e.pointerId] = getXY(e);
-});
-canvas.addEventListener('pointerup',     e => { delete pointers[e.pointerId]; });
-canvas.addEventListener('pointercancel', e => { delete pointers[e.pointerId]; });
+// ─── INPUT ────────────────────────────────────────
+function getXY(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+canvas.addEventListener('pointerdown',  e => { canvas.setPointerCapture(e.pointerId); pointers[e.pointerId]=getXY(e); });
+canvas.addEventListener('pointermove',  e => { pointers[e.pointerId]=getXY(e); });
+canvas.addEventListener('pointerup',    e => { delete pointers[e.pointerId]; });
+canvas.addEventListener('pointercancel',e => { delete pointers[e.pointerId]; });
 
 // ─── GAME START ───────────────────────────────────
 function startGame(){
   document.getElementById('start').classList.add('gone');
   document.getElementById('end-ov').classList.add('gone');
-  score = 0; round = 0; phase = 'idle'; pulseT = 0;
-  roundStars = [0,0,0]; roundGains = [0,0,0]; roundBonuses = [0,0,0];
-  if(words.length === 0){ resize(); layout(); }
+  score=0; round=0; phase='idle'; pulseT=0;
+  roundStars=[0,0,0]; roundGains=[0,0,0]; roundBonuses=[0,0,0];
+  if(!words.length){ resize(); layout(); }
   else { for(const w of words){ w.vx=0;w.vy=0;w.x=w.hx;w.y=w.hy; } }
   setupRound(0);
 }
 
 // ─── LOOP ─────────────────────────────────────────
-let lastT = 0;
+let lastT=0;
 function loop(t){
-  const dt = Math.min((t-lastT)/16.67, 3); lastT = t;
-  if(phase !== 'idle') update(dt);
+  const dt=Math.min((t-lastT)/16.67,3); lastT=t;
+  if(phase!=='idle') update(dt);
   draw();
   requestAnimationFrame(loop);
 }
