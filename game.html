@@ -180,7 +180,6 @@ let combosFound = new Set();
 let pendingPanels = [];
 let pointers = {};
 let pulseT   = 0;
-let tapStart = null;    // for tap detection
 
 // ─── LAYOUT ───────────────────────────────────────
 function layout(){
@@ -275,20 +274,14 @@ function update(dt){
       }
       const target = Math.max(0.06, vis * 0.9 + fingerBonus);
       w.goldAlpha += (target - w.goldAlpha) * 0.07;
-    }
-  }
-}
 
-// ─── COLLECTION ───────────────────────────────────
-function tryCollect(x, y){
-  if(phase !== 'explore') return;
-  for(const w of words){
-    if(w.goldIndex < 0 || found.has(w.goldIndex)) continue;
-    if(w.goldAlpha < 0.55) continue;
-    const d = Math.hypot(x - w.x, y - w.y);
-    if(d < 32){
-      collectWord(w);
-      return;
+      // Auto-collect: stay above threshold long enough
+      if(w.goldAlpha > 0.58){
+        w.revealTimer = (w.revealTimer || 0) + dt * 16.67 / 1000;
+        if(w.revealTimer >= 1.0) collectWord(w);
+      } else {
+        w.revealTimer = Math.max(0, (w.revealTimer||0) - dt * 16.67 / 1000 * 0.8);
+      }
     }
   }
 }
@@ -398,10 +391,13 @@ function draw(){
         ctx.fillText(w.text, w.x, w.y);
         ctx.shadowBlur  = 0; ctx.shadowColor = 'transparent';
 
-        // Tap affordance: small dot below
-        ctx.beginPath(); ctx.arc(w.x, w.y + 14, 2.5, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(${r},${gg},${b},${(0.5 + pulse*0.3).toFixed(2)})`;
-        ctx.fill();
+        // Progress arc showing auto-collect countdown
+        const prog = Math.min(1, (w.revealTimer||0) / 1.0);
+        if(prog > 0){
+          ctx.beginPath();
+          ctx.arc(w.x, w.y, w.tw/2 + 8, -Math.PI/2, -Math.PI/2 + prog * Math.PI * 2);
+          ctx.strokeStyle = `rgba(${r},${gg},${b},0.7)`; ctx.lineWidth = 2; ctx.stroke();
+        }
       } else {
         ctx.fillStyle = `rgba(${r},${gg},${b},${Math.max(0.06, a * 0.85).toFixed(2)})`;
         ctx.fillText(w.text, w.x, w.y);
@@ -445,34 +441,10 @@ function draw(){
 // ─── INPUT ────────────────────────────────────────
 function getXY(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
 
-canvas.addEventListener('pointerdown', e => {
-  canvas.setPointerCapture(e.pointerId);
-  const {x,y} = getXY(e);
-  pointers[e.pointerId] = {x,y};
-  tapStart = { x, y, id: e.pointerId, t: Date.now() };
-});
-
-canvas.addEventListener('pointermove', e => {
-  const {x,y} = getXY(e);
-  pointers[e.pointerId] = {x,y};
-  if(tapStart && tapStart.id === e.pointerId){
-    if(Math.hypot(x-tapStart.x, y-tapStart.y) > 18) tapStart = null; // moved too much → swipe, not tap
-  }
-});
-
-canvas.addEventListener('pointerup', e => {
-  const {x,y} = getXY(e);
-  delete pointers[e.pointerId];
-  if(tapStart && tapStart.id === e.pointerId && Date.now()-tapStart.t < 400){
-    tryCollect(x, y);
-  }
-  tapStart = null;
-});
-
-canvas.addEventListener('pointercancel', e => {
-  delete pointers[e.pointerId];
-  tapStart = null;
-});
+canvas.addEventListener('pointerdown',  e => { canvas.setPointerCapture(e.pointerId); pointers[e.pointerId]=getXY(e); });
+canvas.addEventListener('pointermove',  e => { pointers[e.pointerId]=getXY(e); });
+canvas.addEventListener('pointerup',    e => { delete pointers[e.pointerId]; });
+canvas.addEventListener('pointercancel',e => { delete pointers[e.pointerId]; });
 
 // ─── GAME START ───────────────────────────────────
 function startGame(){
@@ -483,7 +455,7 @@ function startGame(){
   pendingPanels = []; phase = 'idle'; pulseT = 0;
 
   if(!words.length){ resize(); layout(); }
-  else { for(const w of words){ w.vx=0;w.vy=0;w.x=w.hx;w.y=w.hy;w.goldAlpha=0; } }
+  else { for(const w of words){ w.vx=0;w.vy=0;w.x=w.hx;w.y=w.hy;w.goldAlpha=0;w.revealTimer=0; } }
   phase = 'explore';
 }
 
