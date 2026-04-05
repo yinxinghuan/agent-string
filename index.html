@@ -272,15 +272,20 @@ function update(dt){
         const d = Math.hypot(p.x - w.hx, p.y - w.hy);
         if(d < 120) fingerBonus = Math.max(fingerBonus, (1-d/120) * 0.25);
       }
-      const target = Math.max(0.06, vis * 0.9 + fingerBonus);
+      // Without finger nearby: shimmer faintly but cap below collection threshold
+      // Only brighten fully when player is actively clearing this area
+      const fingerActive = fingerBonus > 0.02;
+      const alphaCap = fingerActive ? 1.0 : 0.28;
+      const target = Math.min(alphaCap, Math.max(0.06, vis * 0.9 + fingerBonus));
       w.goldAlpha += (target - w.goldAlpha) * 0.07;
 
-      // Auto-collect: stay above threshold long enough
-      if(w.goldAlpha > 0.58){
+      // Auto-collect: only when finger has been actively clearing (alpha can only
+      // exceed 0.55 when fingerActive, so this implicitly requires interaction)
+      if(w.goldAlpha > 0.55){
         w.revealTimer = (w.revealTimer || 0) + dt * 16.67 / 1000;
         if(w.revealTimer >= 1.0) collectWord(w);
       } else {
-        w.revealTimer = Math.max(0, (w.revealTimer||0) - dt * 16.67 / 1000 * 0.8);
+        w.revealTimer = Math.max(0, (w.revealTimer||0) - dt * 16.67 / 1000 * 1.2);
       }
     }
   }
