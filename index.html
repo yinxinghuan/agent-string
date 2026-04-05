@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>AGENT://STRING</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Courier New',Courier,monospace;background:#08080f}
+body{border-radius:24px;overflow:hidden}
+#c{position:fixed;inset:0;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:2}
+#hud-tl{position:absolute;top:18px;left:20px;font-size:9px;letter-spacing:3px;color:rgba(160,160,185,.35);line-height:1.9}
+#hud-tr{position:absolute;top:18px;right:20px;text-align:right;font-size:9px;letter-spacing:2px;color:rgba(160,160,185,.35);line-height:1.9}
+#hud-bl{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:2px;color:rgba(160,160,185,.18);white-space:nowrap}
+.overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#08080f;transition:opacity .4s}
+.overlay.gone{opacity:0;pointer-events:none}
+#s-title{font-size:clamp(13px,3vw,22px);font-weight:400;color:rgba(255,255,255,.7);letter-spacing:10px;margin-bottom:8px}
+#s-sub{font-size:10px;color:rgba(160,160,185,.3);letter-spacing:4px;margin-bottom:56px}
+.btn{font-family:'Courier New',monospace;font-size:10px;letter-spacing:5px;color:rgba(200,255,80,.6);border:1px solid rgba(200,255,80,.18);background:transparent;padding:12px 28px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;outline:none}
+#cmp{text-align:center;max-width:360px;padding:0 24px}
+#cmp-kw{font-size:clamp(18px,4.5vw,30px);font-weight:400;letter-spacing:6px;color:rgba(200,255,80,.85);margin-bottom:6px}
+#cmp-rule{width:36px;height:1px;background:rgba(255,255,255,.1);margin:14px auto}
+#cmp-body{font-size:12px;color:rgba(180,180,205,.5);line-height:1.9;margin-bottom:24px;font-family:-apple-system,sans-serif}
+#cmp-btns{display:flex;gap:12px;justify-content:center}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="hud-tl"></div>
+  <div id="hud-tr"></div>
+  <div id="hud-bl"></div>
+</div>
+<div id="start" class="overlay">
+  <div id="s-title">AGENT :// STRING</div>
+  <div id="s-sub">语义空间实验</div>
+  <button class="btn" onpointerdown="startL1()">ENTER →</button>
+</div>
+<div id="cmp-overlay" class="overlay gone">
+  <div id="cmp">
+    <div id="cmp-kw"></div>
+    <div id="cmp-rule"></div>
+    <div id="cmp-body"></div>
+    <div id="cmp-btns">
+      <button class="btn" onpointerdown="retryLevel()">RETRY</button>
+      <button class="btn" id="btn-next" style="display:none" onpointerdown="nextLevel()">NEXT →</button>
+    </div>
+  </div>
+</div>
+<script>
+// ─── CANVAS ────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W = 0, H = 0;
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+
+const ACCENT = 'rgba(200,255,80,';
+const DIM    = 'rgba(160,160,185,';
+const WHITE  = 'rgba(255,255,255,';
+
+// ─── GAME STATE ────────────────────────────────────
+let level = 0, alive = false, timer = 0, timerOn = false;
+
+// ─── LEVEL 1 — CLUSTER ────────────────────────────
+// Draw a lasso to encircle semantically related words.
+// ≥3 same-group words + ≤1 noise inside = cluster formed.
+// ──────────────────────────────────────────────────
+const L1_GROUPS = [
+  { id:'SENSE', col:'rgba(200,255,80,',  words:['visual','audio','signal','sensor','detect'] },
+  { id:'THINK', col:'rgba(255,160,80,',  words:['reason','infer','plan','logic','chain'] },
+  { id:'STORE', col:'rgba(80,200,255,',  words:['token','embed','buffer','vector','memory'] },
+  { id:'ACT',   col:'rgba(160,255,180,', words:['call','tool','output','write','execute'] },
+];
+const L1_NOISE = ['the','and','but','with'];
+
+let l1Words = [], l1Formed = [];
+let l1Lasso = { active:false, path:[], result:null, resultT:0 };
+
+function l1Corner(i){
+  // Fixed bottom-strip positions for 4 clusters
+  const margin = 70, step = (W - margin*2) / 3;
+  return { cx: margin + i*step, cy: H - 26 };
+}
+
+function initL1(){
+  l1Words = []; l1Formed = [];
+  l1Lasso = { active:false, path:[], result:null, resultT:0 };
+
+  const all = [];
+  for(const g of L1_GROUPS) for(const w of g.words) all.push({ text:w, group:g.id, col:g.col });
+  for(const w of L1_NOISE) all.push({ text:w, group:'NOISE', col:DIM });
+  // shuffle
+  for(let i = all.length-1; i > 0; i--){
+    const j = Math.floor(Math.random()*(i+1)); [all[i],all[j]] = [all[j],all[i]];
+  }
+  for(const d of all){
+    let x, y, tries = 0;
+    do { x = 60+Math.random()*(W-120); y = 100+Math.random()*(H-180); tries++; }
+    while(tries < 40 && l1Words.some(w => Math.hypot(w.x-x, w.y-y) < 56));
+    l1Words.push({ ...d, x, y, vx:(Math.random()-.5)*.18, vy:(Math.random()-.5)*.18,
+      captured:false, capturedAnim:0, tx:x, ty:y });
+  }
+}
+
+function updateL1(dt){
+  for(const w of l1Words){
+    if(w.captured){
+      w.vx += (w.tx-w.x)*.05; w.vy += (w.ty-w.y)*.05;
+      w.vx *= .88; w.vy *= .88;
+      w.x += w.vx*dt; w.y += w.vy*dt;
+      w.capturedAnim = Math.min(1, w.capturedAnim + dt*.025);
+      continue;
+    }
+    w.vx += (Math.random()-.5)*.022;
+    w.vy += (Math.random()-.5)*.022;
+    w.vx *= .984; w.vy *= .984;
+    w.x += w.vx*dt; w.y += w.vy*dt;
+    const pad = 46;
+    if(w.x<pad){w.x=pad;w.vx*=-.6;} if(w.x>W-pad){w.x=W-pad;w.vx*=-.6;}
+    if(w.y<86){w.y=86;w.vy*=-.6;} if(w.y>H-36){w.y=H-36;w.vy*=-.6;}
+  }
+  // gentle repulsion between free words
+  const free = l1Words.filter(w => !w.captured);
+  for(let i=0; i<free.length; i++) for(let j=i+1; j<free.length; j++){
+    const a=free[i], b=free[j];
+    const dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy);
+    if(d<50&&d>.5){ const f=(1-d/50)*.022; a.vx-=dx/d*f; a.vy-=dy/d*f; b.vx+=dx/d*f; b.vy+=dy/d*f; }
+  }
+  if(l1Lasso.resultT>0) l1Lasso.resultT = Math.max(0, l1Lasso.resultT - dt*.028);
+}
+
+function drawL1(){
+  // Bottom separator when clusters exist
+  if(l1Formed.length > 0){
+    ctx.strokeStyle = DIM+'.08)'; ctx.lineWidth = .5;
+    ctx.beginPath(); ctx.moveTo(0,H-52); ctx.lineTo(W,H-52); ctx.stroke();
+    // Cluster group labels
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    for(let fi=0; fi<l1Formed.length; fi++){
+      const g = L1_GROUPS.find(g => g.id===l1Formed[fi]);
+      const {cx,cy} = l1Corner(fi);
+      ctx.font='7px "Courier New",monospace';
+      ctx.fillStyle = g.col+'.38)';
+      ctx.fillText('['+g.id+']', cx, cy-14);
+    }
+  }
+
+  // Lasso path
+  if(l1Lasso.path.length > 1){
+    ctx.beginPath();
+    ctx.moveTo(l1Lasso.path[0].x, l1Lasso.path[0].y);
+    for(let i=1; i<l1Lasso.path.length; i++) ctx.lineTo(l1Lasso.path[i].x, l1Lasso.path[i].y);
+    if(!l1Lasso.active && l1Lasso.result){
+      ctx.lineTo(l1Lasso.path[0].x, l1Lasso.path[0].y);
+    }
+    const bad = l1Lasso.result?.type==='bad';
+    const a   = l1Lasso.active ? .38 : Math.max(0,l1Lasso.resultT)*.45;
+    ctx.strokeStyle = (bad?'rgba(255,80,80,':ACCENT)+a+')';
+    ctx.lineWidth = 1.5; ctx.stroke();
+  }
+
+  // Words
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(const w of l1Words){
+    const inL = l1Lasso.path.length>3 && !w.captured && pointInPoly(w.x,w.y,l1Lasso.path);
+    let alpha, fs=11;
+    if(w.captured)          { alpha = .15 + w.capturedAnim*.55; }
+    else if(inL)            { alpha = .7; fs=12; }
+    else if(w.group==='NOISE') { alpha = .14; }
+    else                    { alpha = .24; }
+    ctx.font = `${fs}px "Courier New",monospace`;
+    ctx.fillStyle = (w.captured||inL ? w.col : w.group==='NOISE' ? DIM : WHITE) + alpha + ')';
+    ctx.fillText(w.text, w.x, w.y);
+  }
+}
+
+function pointInPoly(px,py,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1; i<poly.length; j=i++){
+    const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+
+function evalLasso(){
+  const path = l1Lasso.path;
+  if(path.length < 6){ l1Lasso.result=null; return; }
+  const closed = Math.hypot(path[0].x-path[path.length-1].x, path[0].y-path[path.length-1].y) < 80;
+  const inside = l1Words.filter(w => !w.captured && pointInPoly(w.x,w.y,path));
+  if(!closed || inside.length===0){ l1Lasso.result={type:'bad'}; l1Lasso.resultT=1; return; }
+
+  const gc = {};
+  for(const w of inside) gc[w.group] = (gc[w.group]||0)+1;
+  const noise = gc['NOISE']||0; delete gc['NOISE'];
+  let dom=null, domC=0;
+  for(const [g,c] of Object.entries(gc)) if(c>domC){ dom=g; domC=c; }
+
+  const fail = !dom || domC<3 || noise>1 || l1Formed.includes(dom);
+  if(fail){
+    l1Lasso.result={type:'bad'}; l1Lasso.resultT=1;
+    const cx=inside.reduce((s,w)=>s+w.x,0)/inside.length;
+    const cy=inside.reduce((s,w)=>s+w.y,0)/inside.length;
+    for(const w of inside){ const dx=w.x-cx,dy=w.y-cy,d=Math.sqrt(dx*dx+dy*dy)+1; w.vx+=dx/d*2.2; w.vy+=dy/d*2.2; }
+    return;
+  }
+  // SUCCESS
+  l1Lasso.result={type:'good'}; l1Lasso.resultT=1;
+  l1Formed.push(dom);
+  const fi = l1Formed.length-1;
+  const {cx,cy} = l1Corner(fi);
+  l1Words.filter(w=>w.group===dom).forEach((w,k) => {
+    w.captured=true; w.capturedAnim=0;
+    w.tx = cx+(k-2)*22; w.ty = cy;
+  });
+  updateHUD1();
+  if(l1Formed.length>=4) setTimeout(()=>complete('CLUSTER','在向量空间中，语义相似的词天然聚集——这是 embedding 的本质。意义决定距离。',true),1000);
+}
+
+function updateHUD1(){
+  hud(`L1 · CLUSTER\n${timer|0}s`, `${l1Formed.length} / 4`, '画圈圈住语义相关的词');
+}
+
+// ─── LEVEL 2 — STRING ─────────────────────────────
+// Draw a continuous strand. It threads through words
+// it passes near. Stranding ≥3 same-group words = cluster.
+// Touching a different-group word snaps the strand.
+// ──────────────────────────────────────────────────
+const L2_GROUPS = [
+  { id:'SENSE', col:'rgba(200,255,80,',  words:['visual','audio','signal','sensor'] },
+  { id:'THINK', col:'rgba(255,160,80,',  words:['reason','infer','plan','logic'] },
+  { id:'STORE', col:'rgba(80,200,255,',  words:['token','embed','buffer','vector'] },
+  { id:'ACT',   col:'rgba(160,255,180,', words:['call','tool','output','execute'] },
+];
+const L2_NOISE  = ['the','but','and','with'];
+const THREAD_R  = 30;
+const L2_GOAL   = 3;
+
+let l2Words=[], l2Formed=[];
+let l2Strand = { active:false, path:[], threaded:[], broken:false, result:null, resultT:0 };
+
+function initL2(){
+  l2Words=[]; l2Formed=[];
+  l2Strand={active:false,path:[],threaded:[],broken:false,result:null,resultT:0};
+  const all=[];
+  for(const g of L2_GROUPS) for(const w of g.words) all.push({text:w,group:g.id,col:g.col});
+  for(const w of L2_NOISE) all.push({text:w,group:'NOISE',col:DIM});
+  for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
+  for(const d of all){
+    let x,y,tries=0;
+    do{x=68+Math.random()*(W-136);y=95+Math.random()*(H-170);tries++;}
+    while(tries<40 && l2Words.some(w=>Math.hypot(w.x-x,w.y-y)<62));
+    l2Words.push({...d,x,y,vx:(Math.random()-.5)*.14,vy:(Math.random()-.5)*.14,
+      formed:false,threaded:false,pingT:0});
+  }
+}
+
+function updateL2(dt){
+  for(const w of l2Words){
+    if(!w.formed){
+      w.vx+=(Math.random()-.5)*.016; w.vy+=(Math.random()-.5)*.016;
+      w.vx*=.984; w.vy*=.984;
+      w.x+=w.vx*dt; w.y+=w.vy*dt;
+      const pad=52;
+      if(w.x<pad){w.x=pad;w.vx*=-.5;} if(w.x>W-pad){w.x=W-pad;w.vx*=-.5;}
+      if(w.y<88){w.y=88;w.vy*=-.5;} if(w.y>H-36){w.y=H-36;w.vy*=-.5;}
+    }
+    if(w.pingT>0) w.pingT=Math.max(0,w.pingT-dt*.04);
+  }
+  // repulsion
+  const free=l2Words.filter(w=>!w.formed);
+  for(let i=0;i<free.length;i++) for(let j=i+1;j<free.length;j++){
+    const a=free[i],b=free[j];
+    const dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<50&&d>.5){const f=(1-d/50)*.016;a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f;}
+  }
+  // strand threading
+  if(l2Strand.active && !l2Strand.broken && l2Strand.path.length>0){
+    const tip=l2Strand.path[l2Strand.path.length-1];
+    for(const w of l2Words){
+      if(w.threaded||w.formed) continue;
+      if(Math.hypot(w.x-tip.x,w.y-tip.y)<THREAD_R){
+        if(w.group==='NOISE'||(l2Strand.threaded.length>0&&l2Strand.threaded[l2Strand.threaded.length-1].group!==w.group)){
+          // break
+          l2Strand.broken=true;
+          const cx=tip.x,cy=tip.y;
+          for(const tw of l2Strand.threaded){
+            tw.threaded=false;
+            const dx=tw.x-cx,dy=tw.y-cy,d=Math.sqrt(dx*dx+dy*dy)+1;
+            tw.vx+=dx/d*1.8; tw.vy+=dy/d*1.8;
+          }
+          break;
+        }
+        w.threaded=true;
+        l2Strand.threaded.push(w);
+        w.pingT=1;
+      }
+    }
+    // proximity ping
+    for(const w of l2Words){
+      if(!w.threaded&&!w.formed&&Math.hypot(w.x-tip.x,w.y-tip.y)<58) w.pingT=Math.max(w.pingT,.32);
+    }
+  }
+  if(l2Strand.resultT>0) l2Strand.resultT=Math.max(0,l2Strand.resultT-dt*.03);
+}
+
+function evalStrand(){
+  const th=l2Strand.threaded;
+  if(!l2Strand.broken && th.length>=3 && th[0].group!=='NOISE'){
+    const gid=th[0].group;
+    if(!l2Formed.includes(gid) && th.every(w=>w.group===gid)){
+      l2Formed.push(gid);
+      for(const w of th) w.formed=true;
+      // drift toward centroid
+      const cx=th.reduce((s,w)=>s+w.x,0)/th.length;
+      const cy=th.reduce((s,w)=>s+w.y,0)/th.length;
+      for(const w of th){w.vx+=(cx-w.x)*.018;w.vy+=(cy-w.y)*.018;}
+      l2Strand.result='good'; l2Strand.resultT=1;
+      updateHUD2();
+      if(l2Formed.length>=L2_GOAL) setTimeout(()=>complete('STRING','相关概念像弦一样串联——这是注意力机制的本质：信息沿最强关联路径传播。',false),900);
+      return;
+    }
+  }
+  for(const w of th) w.threaded=false;
+  l2Strand.result='bad'; l2Strand.resultT=.7;
+}
+
+function drawL2(){
+  // strand path
+  if(l2Strand.path.length>1){
+    ctx.beginPath();
+    ctx.moveTo(l2Strand.path[0].x,l2Strand.path[0].y);
+    for(let i=1;i<l2Strand.path.length;i++) ctx.lineTo(l2Strand.path[i].x,l2Strand.path[i].y);
+    const bad = l2Strand.broken||(l2Strand.result==='bad'&&!l2Strand.active);
+    const a   = l2Strand.active?.3:Math.max(0,l2Strand.resultT)*.32;
+    ctx.strokeStyle=(bad?'rgba(255,80,80,':ACCENT)+a+')';
+    ctx.lineWidth=1.5; ctx.stroke();
+  }
+  // connections along threaded beads
+  if(l2Strand.threaded.length>1){
+    const g=L2_GROUPS.find(g=>g.id===l2Strand.threaded[0].group);
+    if(g) for(let i=1;i<l2Strand.threaded.length;i++){
+      const a=l2Strand.threaded[i-1],b=l2Strand.threaded[i];
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.strokeStyle=g.col+'.35)';ctx.lineWidth=1.2;ctx.stroke();
+    }
+  }
+  // formed cluster connections + labels
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const gid of l2Formed){
+    const fw=l2Words.filter(w=>w.group===gid&&w.formed);
+    const g=L2_GROUPS.find(g=>g.id===gid);
+    for(let i=1;i<fw.length;i++){
+      ctx.beginPath();ctx.moveTo(fw[i-1].x,fw[i-1].y);ctx.lineTo(fw[i].x,fw[i].y);
+      ctx.strokeStyle=g.col+'.2)';ctx.lineWidth=1;ctx.stroke();
+    }
+    const cx=fw.reduce((s,w)=>s+w.x,0)/fw.length;
+    const cy=fw.reduce((s,w)=>s+w.y,0)/fw.length;
+    ctx.font='7px "Courier New",monospace';ctx.fillStyle=g.col+'.38)';
+    ctx.fillText('['+gid+']',cx,cy-22);
+  }
+  // words
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const w of l2Words){
+    const ping=Math.max(0,w.pingT);
+    let fs=11,alpha;
+    if(w.formed)          {fs=13;alpha=.72;}
+    else if(w.threaded)   {fs=13;alpha=.65;}
+    else if(ping>.2)      {alpha=.12+ping*.38;}
+    else if(w.group==='NOISE'){alpha=.11;}
+    else                  {alpha=.2;}
+    ctx.font=`${fs}px "Courier New",monospace`;
+    ctx.fillStyle=((w.formed||w.threaded||ping>.2)?w.col:DIM)+alpha+')';
+    ctx.fillText(w.text,w.x,w.y);
+  }
+}
+
+function updateHUD2(){
+  hud(`L2 · STRING\n${timer|0}s`,`${l2Formed.length} / ${L2_GOAL}`,'画线穿过语义相关的词');
+}
+
+// ─── INPUT ─────────────────────────────────────────
+function getXY(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+
+canvas.addEventListener('pointerdown',e=>{
+  if(!alive) return;
+  canvas.setPointerCapture(e.pointerId);
+  const {x,y}=getXY(e);
+  if(level===1){
+    l1Lasso={active:true,path:[{x,y}],result:null,resultT:0};
+  } else if(level===2){
+    for(const w of l2Strand.threaded) if(!w.formed) w.threaded=false;
+    l2Strand={active:true,path:[{x,y}],threaded:[],broken:false,result:null,resultT:0};
+  }
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!alive) return;
+  const {x,y}=getXY(e);
+  if(level===1&&l1Lasso.active){
+    const last=l1Lasso.path[l1Lasso.path.length-1];
+    if(Math.hypot(x-last.x,y-last.y)>7) l1Lasso.path.push({x,y});
+  } else if(level===2&&l2Strand.active){
+    const last=l2Strand.path[l2Strand.path.length-1];
+    if(Math.hypot(x-last.x,y-last.y)>6) l2Strand.path.push({x,y});
+  }
+});
+canvas.addEventListener('pointerup',e=>{
+  if(!alive) return;
+  if(level===1&&l1Lasso.active){
+    l1Lasso.active=false; evalLasso();
+    setTimeout(()=>{ l1Lasso.path=[]; },700);
+  }
+  if(level===2&&l2Strand.active){
+    l2Strand.active=false; evalStrand();
+    setTimeout(()=>{ l2Strand.path=[]; l2Strand.threaded=[]; },700);
+  }
+});
+
+// ─── HUD ───────────────────────────────────────────
+function hud(tl='',tr='',bl=''){
+  document.getElementById('hud-tl').innerHTML=tl.replace(/\n/g,'<br>');
+  document.getElementById('hud-tr').innerHTML=tr;
+  document.getElementById('hud-bl').innerHTML=bl;
+}
+
+// ─── GAME FLOW ─────────────────────────────────────
+function startL1(){
+  document.getElementById('start').classList.add('gone');
+  level=1; timer=90; timerOn=true;
+  initL1(); alive=true; updateHUD1();
+}
+function startL2(){
+  document.getElementById('cmp-overlay').classList.add('gone');
+  level=2; timer=120; timerOn=true;
+  initL2(); alive=true; updateHUD2();
+}
+function retryLevel(){
+  document.getElementById('cmp-overlay').classList.add('gone');
+  setTimeout(()=>{
+    if(level===1){timer=90;initL1();updateHUD1();}
+    else{timer=120;initL2();updateHUD2();}
+    timerOn=true; alive=true;
+  },300);
+}
+function nextLevel(){ startL2(); }
+function complete(kw,body,hasNext){
+  alive=false; timerOn=false;
+  document.getElementById('cmp-kw').textContent=kw;
+  document.getElementById('cmp-body').textContent=body;
+  document.getElementById('btn-next').style.display=hasNext?'':'none';
+  document.getElementById('cmp-overlay').classList.remove('gone');
+}
+function failLevel(){ alive=false; timerOn=false; complete('TIME OUT','时间耗尽。再试一次。',false); }
+
+// ─── MAIN LOOP ─────────────────────────────────────
+let lastT=0;
+function loop(t){
+  const dt=Math.min((t-lastT)/16.67,3); lastT=t;
+  if(timerOn){
+    const prev=timer|0;
+    timer=Math.max(0,timer-dt*16.67/1000);
+    if(timer<=0){timerOn=false;failLevel();}
+    else if((timer|0)!==prev){ if(level===1)updateHUD1(); else updateHUD2(); }
+  }
+  ctx.fillStyle='#08080f'; ctx.fillRect(0,0,W,H);
+  if(alive){
+    if(level===1){ updateL1(dt); drawL1(); }
+    if(level===2){ updateL2(dt); drawL2(); }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
