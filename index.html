@@ -74,6 +74,30 @@ body{border-radius:24px;overflow:hidden}
 #e-score{font-size:10px;letter-spacing:3px;color:rgba(20,12,5,.30);text-align:center;
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;line-height:2.2}
 .e-btns{display:flex;flex-direction:column;align-items:center;width:100%}
+
+/* ── Leaderboard ── */
+#lb-tabs{display:none;width:100%;margin-bottom:0}
+.lb-tab{flex:1;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:10px;
+  letter-spacing:3px;color:rgba(20,12,5,.28);border:none;background:transparent;
+  padding:10px 0;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent;
+  border-bottom:1px solid rgba(20,12,5,.10)}
+.lb-tab.active{color:rgba(20,12,5,.72);border-bottom:1px solid rgba(20,12,5,.50)}
+#lb-list{width:100%;max-height:42vh;overflow-y:auto;padding:2px 0}
+.lb-row{display:flex;align-items:center;gap:10px;padding:7px 0;
+  border-bottom:1px solid rgba(20,12,5,.06)}
+.lb-rank{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;
+  color:rgba(20,12,5,.28);width:24px;text-align:center;flex-shrink:0}
+.lb-av{width:26px;height:26px;border-radius:50%;background:rgba(20,12,5,.08);
+  display:flex;align-items:center;justify-content:center;font-size:11px;
+  color:rgba(20,12,5,.38);flex-shrink:0;overflow:hidden}
+.lb-av img{width:100%;height:100%;object-fit:cover}
+.lb-name{flex:1;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;
+  letter-spacing:1px;color:rgba(20,12,5,.60);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-score{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;
+  letter-spacing:1px;color:rgba(20,12,5,.70);flex-shrink:0}
+.lb-me .lb-name,.lb-me .lb-score{color:rgba(20,12,5,.90);font-weight:500}
+#lb-status{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;
+  letter-spacing:3px;color:rgba(20,12,5,.22);text-align:center;padding:22px 0}
 </style>
 </head>
 <body>
@@ -131,8 +155,12 @@ body{border-radius:24px;overflow:hidden}
     <div class="ov-rule"></div>
     <div class="ov-bigtitle" style="font-size:clamp(30px,7vw,44px);letter-spacing:10px">RANK</div>
     <div class="ov-rule"></div>
-    <div id="lb-empty" style="font-size:11px;letter-spacing:4px;color:rgba(20,12,5,.25);
-      font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;text-align:center;padding:28px 0"></div>
+    <div id="lb-tabs">
+      <button class="lb-tab active" id="lb-tab-global" onpointerdown="switchLbTab('global')">GLOBAL</button>
+      <button class="lb-tab" id="lb-tab-friends" onpointerdown="switchLbTab('friends')">FRIENDS</button>
+    </div>
+    <div id="lb-status"></div>
+    <div id="lb-list"></div>
     <div class="ov-rule"></div>
     <button class="btn-ghost" id="lb-back" onpointerdown="hideLeaderboard()"></button>
   </div>
@@ -157,6 +185,7 @@ const I18N={
     'end.retry':    'R E T R Y',
     'lb.label':     '// RANK · leaderboard',
     'lb.empty':     '— no data yet —',
+    'lb.loading':   '...',
     'lb.back':      '← B A C K',
     'toast.found':  '// found',
     'toast.trap':   '// signal error',
@@ -186,6 +215,7 @@ const I18N={
     'end.retry':    '再 来 一 次',
     'lb.label':     '// RANK · 排行榜',
     'lb.empty':     '— 暂无数据 —',
+    'lb.loading':   '...',
     'lb.back':      '← 返 回',
     'toast.found':  '// 发现',
     'toast.trap':   '// 干扰',
@@ -216,7 +246,6 @@ function renderI18n(){
   document.getElementById('e-next').textContent       = t('end.next');
   document.getElementById('e-retry').textContent      = t('end.retry');
   document.getElementById('lb-label').textContent     = t('lb.label');
-  document.getElementById('lb-empty').textContent     = t('lb.empty');
   document.getElementById('lb-back').textContent      = t('lb.back');
   applyFont();
 }
@@ -1304,6 +1333,7 @@ function showEnd(){
   const passed = lapCount > 0 || pct >= 0.5;
   document.getElementById('e-next').style.display = passed ? '' : 'none';
   document.getElementById('end-ov').classList.remove('gone');
+  submitScore(score);
 }
 
 function nextLevel(){ currentLevel++; startGame(); }
@@ -1501,6 +1531,134 @@ function loop(t){
   update(dt); draw();
   requestAnimationFrame(loop);
 }
+// ─────────────────────────────────────────────────────────────────────────────
+//  LEADERBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+const GAMES_API = 'https://games-api.xinghuan-yin.workers.dev';
+const GAME_ID   = 'agent-string';
+
+function getAigramContext(){
+  const p = new URLSearchParams(window.location.search);
+  const telegramId = p.get('telegram_id') ?? null;
+  const raw        = p.get('api_origin');
+  const apiOrigin  = raw ? decodeURIComponent(raw) : null;
+  return { telegramId, apiOrigin, isInAigram: !!(telegramId && apiOrigin) };
+}
+const aigram = getAigramContext();
+
+function _b64e(s){ return btoa(unescape(encodeURIComponent(s))); }
+function _b64d(s){ return decodeURIComponent(escape(atob(s))); }
+
+function callAigramAPI(url, method='GET', data=null){
+  return new Promise((resolve,reject)=>{
+    if(!aigram.isInAigram){ reject(new Error('not in aigram')); return; }
+    const rid = Math.random().toString(36).slice(2);
+    const msg = _b64e(JSON.stringify({ url, method, data, request_id:rid, emitter:window.location.origin }));
+    const timer = setTimeout(()=>{ window.removeEventListener('message',fn); reject(new Error('timeout')); }, 15000);
+    function fn(e){
+      if(typeof e.data!=='string'||!e.data.startsWith('callAPIResult-')) return;
+      try{
+        const r=JSON.parse(_b64d(e.data.slice('callAPIResult-'.length)));
+        if(r.request_id!==rid) return;
+        clearTimeout(timer); window.removeEventListener('message',fn);
+        r.success ? resolve(r.data) : reject(new Error(r.error));
+      }catch(_){}
+    }
+    window.addEventListener('message',fn);
+    window.parent.postMessage(`callAPI-${msg}`, aigram.apiOrigin);
+  });
+}
+
+let myId='', myName='', myAvatar='';
+
+async function loadUserInfo(){
+  if(!aigram.isInAigram) return;
+  myId = aigram.telegramId||'';
+  try{
+    const r = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/get/info/by/telegram_id?telegram_id=${myId}`);
+    if(r?.data){ myName=r.data.name||''; myAvatar=r.data.head_url||''; }
+  }catch(_){}
+}
+
+function submitScore(s){
+  if(!myId || s<=0) return;
+  fetch(`${GAMES_API}/score`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ game_id:GAME_ID, telegram_id:myId, name:myName, avatar_url:myAvatar, score:s })
+  }).catch(()=>{});
+}
+
+async function fetchGlobalLB(){
+  const r=await fetch(`${GAMES_API}/leaderboard?game_id=${GAME_ID}&limit=50`);
+  return (await r.json()).leaderboard||[];
+}
+
+async function fetchFriendsLB(){
+  const contacts = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/contact/list?telegram_id=${myId}`);
+  const ids=[myId,...(contacts||[]).map(c=>c.telegram_id)].join(',');
+  const r=await fetch(`${GAMES_API}/leaderboard?game_id=${GAME_ID}&telegram_ids=${ids}`);
+  return (await r.json()).leaderboard||[];
+}
+
+let lbTab='global';
+
+function switchLbTab(tab){
+  lbTab=tab;
+  document.getElementById('lb-tab-global').classList.toggle('active',tab==='global');
+  document.getElementById('lb-tab-friends').classList.toggle('active',tab==='friends');
+  loadLB();
+}
+
+function renderLBRows(entries){
+  if(!entries.length){
+    document.getElementById('lb-status').textContent=t('lb.empty');
+    document.getElementById('lb-list').innerHTML='';
+    return;
+  }
+  document.getElementById('lb-status').textContent='';
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('lb-list').innerHTML=entries.map((e,i)=>{
+    const isMe=e.telegram_id===myId;
+    const rank=i<3?medals[i]:`${i+1}`;
+    const init=(e.name||'?')[0].toUpperCase();
+    const av=e.avatar_url
+      ?`<img src="${e.avatar_url}" alt="" onerror="this.style.display='none'">${init}`
+      :init;
+    return `<div class="lb-row${isMe?' lb-me':''}">
+      <div class="lb-rank">${rank}</div>
+      <div class="lb-av">${av}</div>
+      <div class="lb-name">${e.name||'—'}</div>
+      <div class="lb-score">${e.score}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadLB(){
+  const status=document.getElementById('lb-status');
+  document.getElementById('lb-list').innerHTML='';
+  status.textContent=t('lb.loading');
+  try{
+    const entries = lbTab==='friends' ? await fetchFriendsLB() : await fetchGlobalLB();
+    renderLBRows(entries);
+  }catch(_){
+    status.textContent=t('lb.empty');
+  }
+}
+
+function showLeaderboard(){
+  document.getElementById('lb-ov').classList.remove('gone');
+  // Show tabs only in Aigram context
+  document.getElementById('lb-tabs').style.display = aigram.isInAigram ? 'flex' : 'none';
+  lbTab='global';
+  document.getElementById('lb-tab-global').classList.add('active');
+  document.getElementById('lb-tab-friends').classList.remove('active');
+  loadLB();
+}
+function hideLeaderboard(){ document.getElementById('lb-ov').classList.add('gone'); }
+
+loadUserInfo();
+
 renderI18n();
 resize(); layout();
 requestAnimationFrame(loop);
