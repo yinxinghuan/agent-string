@@ -196,6 +196,75 @@ function renderI18n(){
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  AUDIO
+// ─────────────────────────────────────────────────────────────────────────────
+let _actx = null;
+function actx(){
+  if(!_actx) _actx = new (window.AudioContext||window.webkitAudioContext)();
+  return _actx;
+}
+function resumeAudio(){ try{ if(_actx && _actx.state==='suspended') _actx.resume(); }catch(e){} }
+
+// Primitive tone: freq, waveform, peak volume, attack, decay, start-offset(s)
+function _tone(freq, type, vol, atk, dec, t0=0){
+  const a=actx(), now=a.currentTime;
+  const osc=a.createOscillator(), g=a.createGain();
+  osc.connect(g); g.connect(a.destination);
+  osc.type=type; osc.frequency.setValueAtTime(freq, now+t0);
+  g.gain.setValueAtTime(0, now+t0);
+  g.gain.linearRampToValueAtTime(vol, now+t0+atk);
+  g.gain.exponentialRampToValueAtTime(0.0001, now+t0+atk+dec);
+  osc.start(now+t0); osc.stop(now+t0+atk+dec+0.05);
+}
+
+// Short noise burst (white noise shaped by exponential decay)
+function _noise(vol, dur, t0=0){
+  const a=actx(), now=a.currentTime;
+  const buf=a.createBuffer(1,Math.ceil(a.sampleRate*dur),a.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(a.sampleRate*dur*0.25));
+  const src=a.createBufferSource(), g=a.createGain();
+  src.buffer=buf; src.connect(g); g.connect(a.destination);
+  g.gain.value=vol; src.start(now+t0);
+}
+
+// ── Sound events ──────────────────────────────────────────────────────────────
+
+// Gold word collected — bell arpeggio, pitch per group
+const _COLLECT_FREQS = [[1047,1319,1568],[880,1109,1319],[784,988,1175]];
+function sfxCollect(group){
+  _COLLECT_FREQS[group%3].forEach((f,i)=>_tone(f,'sine',0.16,0.004,0.38,i*0.06));
+}
+
+// Trap hit — low thud + mid buzz + noise crunch
+function sfxTrap(){
+  _tone(55,'sine',0.55,0.004,0.28);
+  _tone(160,'sawtooth',0.22,0.001,0.10);
+  _noise(0.40,0.18);
+}
+
+// Streak bonus — ascending ping sequence (more pings = bigger streak)
+function sfxStreak(count){
+  const steps=Math.min(count,7);
+  for(let i=0;i<steps;i++) _tone(440*Math.pow(1.2,i),'sine',0.13,0.004,0.22,i*0.07);
+}
+
+// Surge warning — 3 quick electric beeps
+function sfxSurge(){
+  [0,0.13,0.26].forEach(t=>_tone(1200,'square',0.06,0.004,0.08,t));
+}
+
+// Combo unlock — sparkle cascade
+function sfxCombo(){
+  [1047,1319,1568,2093].forEach((f,i)=>_tone(f,'sine',0.14,0.003,0.30,i*0.05));
+}
+
+// Game end
+function sfxComplete(){ [523,659,784,1047].forEach((f,i)=>_tone(f,'sine',0.17,0.01,0.6,i*0.12)); }
+function sfxPartial(){  [523,659].forEach((f,i)=>_tone(f,'sine',0.15,0.01,0.55,i*0.14)); }
+function sfxLost(){     [440,370,311].forEach((f,i)=>_tone(f,'sine',0.14,0.01,0.55,i*0.15)); }
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  LEVEL DATA
 //  layoutMode:
 //    'prose'  — flowing paragraphs, \n\n = paragraph gap
@@ -810,6 +879,7 @@ function triggerTrap(w){
   w.trapTriggered = true; trapHits++;
   streak = 0;
   screenShake = Math.min(1.0, screenShake + 0.7);
+  sfxTrap();
   // In generated levels: trap also triggers a mini surge
   const cfg = lvCFG();
   if(cfg.generated && surgeState === 'idle'){
@@ -860,6 +930,7 @@ function update(dt){
       surgeTimer = 0.45;
       // Next surge in interval ± 30%
       surgeCountdown = cfg.surgeInterval * (0.85 + Math.random() * 0.3);
+      sfxSurge();
       queueToast({ tag:t('toast.warn'), word:'SURGE', color:[180,40,40],
                    brief:t('surge.brief'), dur:1000 });
     }
@@ -952,6 +1023,7 @@ function collectWord(w){
   const gi=w.goldIndex; if(found.has(gi)) return;
   found.add(gi); streak++;
   const g=lvGOLD()[gi]; updateScore();
+  sfxCollect(g.group);
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true });
   queueToast({ tag:t('toast.found'), word:g.text.toUpperCase(), color:g.rgb,
@@ -959,6 +1031,7 @@ function collectWord(w){
 
   // Streak bonus at 3 / 5 / 7
   if(streak === 3 || streak === 5 || streak === 7){
+    sfxStreak(streak);
     queueToast({ tag:t('toast.streak'), word:`×${streak}`, color:[200,160,20],
                  brief:t('streak.brief',streak), dur:3000 });
   }
@@ -966,6 +1039,7 @@ function collectWord(w){
   const gIdxs=lvGOLD().reduce((a,_,i)=>lvGOLD()[i].group===g.group?[...a,i]:a,[]);
   if(gIdxs.every(i=>found.has(i))&&!combosFound.has(g.group)){
     combosFound.add(g.group);
+    sfxCombo();
     const combo=lvCFG().combos[g.group];
     queueToast({ tag:t('toast.combo'),
                  word:locale==='zh'?combo.title:combo.en_title, color:g.rgb,
@@ -1002,6 +1076,8 @@ function showNextToast(){
 function showEnd(){
   phase='idle';
   const lv=lvCFG(), gold=lvGOLD(), total=found.size;
+  const pct=total/gold.length;
+  if(pct>=1) sfxComplete(); else if(pct>=0.375) sfxPartial(); else sfxLost();
 
   const lvDesc=locale==='zh'?lv.desc:(lv.en_desc||lv.desc);
   document.getElementById('e-lv').textContent=`${lv.label} · ${lv.name} · ${lvDesc}`;
@@ -1183,7 +1259,7 @@ function draw(){
 //  INPUT
 // ─────────────────────────────────────────────────────────────────────────────
 function getXY(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
-canvas.addEventListener('pointerdown',  e=>{ canvas.setPointerCapture(e.pointerId); pointers[e.pointerId]=getXY(e); });
+canvas.addEventListener('pointerdown',  e=>{ resumeAudio(); canvas.setPointerCapture(e.pointerId); pointers[e.pointerId]=getXY(e); });
 canvas.addEventListener('pointermove',  e=>{ pointers[e.pointerId]=getXY(e); });
 canvas.addEventListener('pointerup',    e=>{ delete pointers[e.pointerId]; });
 canvas.addEventListener('pointercancel',e=>{ delete pointers[e.pointerId]; });
