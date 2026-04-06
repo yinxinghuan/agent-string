@@ -1168,8 +1168,7 @@ function collectWord(w){
   // ── Time extension word ──────────────────────────────────────────────────
   if(g.type==='time'){
     const add=g.addTime||15;
-    // Cap at original level time — can top up but not infinitely extend
-    timeLeft=Math.min(timeLeft+add, lvCFG().time);
+    timeLeft+=add;
     score+=5;
     sfxTime();
     bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
@@ -1235,7 +1234,7 @@ function checkLap(){
   if(!coreIdxs.every(i=>found.has(i))) return;
   lapCount++;
   const bonus=20, pts=50+lapCount*10;
-  timeLeft=Math.min(timeLeft+bonus, lvCFG().time);
+  timeLeft+=bonus;
   score+=pts;
   sfxComplete();
   queueToast({ tag:t('toast.lap'), word:`LAP ${lapCount}`, color:[200,160,20],
