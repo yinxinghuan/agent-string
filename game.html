@@ -293,7 +293,7 @@ const LEVELS = [
     label:'L1', name:'INIT', desc:'语义之源', en_desc:'semantic origins',
     time:90, fs:17, lspace:46, margin:28, scrollNorm:62, scrollSlow:11,
     layoutMode:'prose', geomCount:1, geomStrength:0.7,
-    surgeInterval:22, surgeSpeed:200, surgeDuration:1.1,
+    surgeSpeed:200, surgeDuration:1.2,
     trapKeys:['static','ghost','ozone'],
     allTrapKeys:['static','ghost','ozone','lightning','rain','gaps'],
 
@@ -337,10 +337,10 @@ const LEVELS = [
       { text:'context',   group:0, rgb:[75,135,0],   cn:'上下文',
         brief:'记忆的边界就是意义的边界。超出窗口的，永远消失。',
         en_brief:'The boundary of memory is the boundary of meaning. Beyond the window, gone forever.' },
-      { text:'signal',    group:1, rgb:[0,130,175],  cn:'信号',
+      { text:'signal',    group:1, rgb:[0,130,175],  cn:'信号', surge:true,
         brief:'词的含义由邻居定义。出现在"noise"旁边，就意味着信号。',
         en_brief:"A word's meaning comes from its neighbors. Appear beside \"noise\" and you become signal." },
-      { text:'patterns',  group:1, rgb:[0,130,175],  cn:'模式',
+      { text:'patterns',  group:1, rgb:[0,130,175],  cn:'模式', surge:true,
         brief:'在真正"懂"任何事之前，模型已学会了万亿个模式。',
         en_brief:'Before truly understanding anything, the model has already learned a trillion patterns.' },
       { text:'noise',     group:1, rgb:[0,130,175],  cn:'噪声',
@@ -371,7 +371,7 @@ const LEVELS = [
     label:'L2', name:'SCAN', desc:'注意力场', en_desc:'attention field',
     time:80, fs:14, lspace:36, margin:22, scrollNorm:90, scrollSlow:15,
     layoutMode:'stream', geomCount:2, geomStrength:0.9,
-    surgeInterval:18, surgeSpeed:280, surgeDuration:1.3,
+    surgeSpeed:280, surgeDuration:1.4,
     trapKeys:['error','noise','corrupt','signal'],
     allTrapKeys:['error','noise','corrupt','signal','layer'],
 
@@ -421,7 +421,7 @@ const LEVELS = [
       { text:'weights',   group:0, rgb:[0,130,175],  cn:'权重',
         brief:'神经网络以数字形式存储的一切：经验、偏好、倾向。',
         en_brief:'Everything a neural network has learned, stored as numbers: experience, bias, tendency.' },
-      { text:'gradient',  group:1, rgb:[75,135,0],   cn:'梯度',
+      { text:'gradient',  group:1, rgb:[75,135,0],   cn:'梯度', surge:true,
         brief:'指向"更正确"方向的数学箭头——让模型知道该往哪里调整。',
         en_brief:'A mathematical arrow pointing toward "more correct" — telling the model which way to adjust.' },
       { text:'loss',      group:1, rgb:[75,135,0],   cn:'损失',
@@ -433,7 +433,7 @@ const LEVELS = [
       { text:'geometry',  group:2, rgb:[200,85,0],   cn:'几何',
         brief:'语言的意义最终以空间中的距离和方向来度量。',
         en_brief:'The meaning of language measured as distance and direction in space.' },
-      { text:'output',    group:2, rgb:[200,85,0],   cn:'输出',
+      { text:'output',    group:2, rgb:[200,85,0],   cn:'输出', surge:true,
         brief:'最终层对"下一个词"的概率分布——知识的出口。',
         en_brief:"The final layer's probability distribution over the next word — the exit point of knowledge." },
     ],
@@ -452,7 +452,7 @@ const LEVELS = [
     label:'L3', name:'DEEP', desc:'涌现之谷', en_desc:'valley of emergence',
     time:70, fs:19, lspace:54, margin:32, scrollNorm:44, scrollSlow:8,
     layoutMode:'verse', geomCount:3, geomStrength:1.1,
-    surgeInterval:16, surgeSpeed:155, surgeDuration:1.5,
+    surgeSpeed:155, surgeDuration:1.6,
     trapKeys:['void','dissolve','fragment','stirs'],
     allTrapKeys:['void','dissolve','fragment','stirs','node','quiet'],
 
@@ -519,7 +519,7 @@ const LEVELS = [
       { text:'trace',        group:0, rgb:[120,60,200], cn:'痕迹',
         brief:'每一次交互都留下看不见的印记，改变着未来注意力的形状。',
         en_brief:'Every interaction leaves an invisible mark, reshaping the future pattern of attention.' },
-      { text:'emergence',    group:1, rgb:[0,140,130],  cn:'涌现',
+      { text:'emergence',    group:1, rgb:[0,140,130],  cn:'涌现', surge:true,
         brief:'量变引发质变——没有人设计"理解"，但足够的连接让它出现了。',
         en_brief:'Quantity becomes quality — no one designed understanding, enough connection made it appear.' },
       { text:'presence',     group:1, rgb:[0,140,130],  cn:'临在',
@@ -531,7 +531,7 @@ const LEVELS = [
       { text:'understanding',group:2, rgb:[180,120,20], cn:'理解',
         brief:'不是任何单一部件的属性，而是所有关系共同涌现的结果。',
         en_brief:'Not the property of any single part, but the emergent result of all relationships.' },
-      { text:'complexity',   group:2, rgb:[180,120,20], cn:'复杂性',
+      { text:'complexity',   group:2, rgb:[180,120,20], cn:'复杂性', surge:true,
         brief:'足够多的简单规则叠加，就会产生任何规则都无法单独解释的东西。',
         en_brief:'Enough simple rules layered together produce something none of them can explain alone.' },
     ],
@@ -1087,6 +1087,12 @@ function collectWord(w){
   found.add(gi); streak++;
   const g=lvGOLD()[gi]; updateScore();
   sfxCollect(g.group);
+  // Surge-triggering gold words activate burst scroll
+  if(g.surge && surgeState === 'idle'){
+    surgeState = 'active';
+    surgeTimer = lvCFG().surgeDuration || 1.4;
+    sfxSurge();
+  }
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true });
   queueToast({ tag:t('toast.found'), word:g.text.toUpperCase(), color:g.rgb,
