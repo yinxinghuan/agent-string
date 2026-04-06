@@ -359,6 +359,11 @@ function generateLevel(n){
   const scrollNorm = Math.min(Math.round(src.scrollNorm * (1 + (tier - 1) * 0.22)), 200);
   const scrollSlow = Math.min(Math.round(src.scrollSlow * (1 + (tier - 1) * 0.22)), 38);
 
+  // Speed surge: tier1=every 28s, tier2=every 18s, tier3+=every 12s
+  const surgeInterval = tier >= 1 ? Math.max(10, 30 - (tier - 1) * 8) : 0;
+  const surgeSpeed    = Math.min(scrollNorm * (3.5 + tier * 0.5), 400);
+  const surgeDuration = Math.min(1.2 + tier * 0.35, 3.0);
+
   const nameIdx = gen % GEN_NAMES.length;
   return {
     ...src,
@@ -367,6 +372,7 @@ function generateLevel(n){
     desc:       GEN_DESCS[nameIdx],
     time, scrollNorm, scrollSlow,
     trapKeys, geomCount, geomStrength,
+    surgeInterval, surgeSpeed, surgeDuration,
     generated: true,
   };
 }
@@ -425,6 +431,10 @@ let pulseT       = 0;
 let geoms        = [];
 let screenShake  = 0;
 let streak       = 0;
+// surge: idle → warn (0.4s flash) → active (burst) → idle
+let surgeState    = 'idle'; // 'idle' | 'warn' | 'active'
+let surgeCountdown= 0;      // seconds until next surge
+let surgeTimer    = 0;      // remaining time in current warn/active phase
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PASSAGE PARSING
@@ -662,8 +672,15 @@ function updateScore(){
 // ─────────────────────────────────────────────────────────────────────────────
 function triggerTrap(w){
   w.trapTriggered = true; trapHits++;
-  streak = 0; // break streak
-  screenShake = Math.min(1.0, screenShake + 0.7); // shake!
+  streak = 0;
+  screenShake = Math.min(1.0, screenShake + 0.7);
+  // In generated levels: trap also triggers a mini surge
+  const cfg = lvCFG();
+  if(cfg.generated && surgeState === 'idle'){
+    surgeState = 'active';
+    surgeTimer = (cfg.surgeDuration || 1.5) * 0.6; // shorter than normal surge
+    surgeCountdown = (cfg.surgeInterval || 20) * (0.8 + Math.random() * 0.4);
+  }
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:[180,40,40], big:true });
   queueToast({ tag:'// 干扰', word:'ERROR', color:[180,40,40],
                brief:'信号污染——附近的词被打乱了。', dur:2500 });
@@ -697,10 +714,38 @@ function update(dt){
   screenShake = Math.max(0, screenShake - sec*2.8);
 
   const cfg = lvCFG();
-  const hasFingers = Object.keys(pointers).length>0;
-  const targetVel  = hasFingers ? cfg.scrollSlow : cfg.scrollNorm;
-  scrollVel += (targetVel-scrollVel)*0.05;
-  scrollY   += scrollVel*sec;
+  const hasFingers = Object.keys(pointers).length > 0;
+
+  // ── Speed surge state machine ──────────────────────────────────────────────
+  if(cfg.surgeInterval){
+    surgeCountdown -= sec;
+    if(surgeCountdown <= 0 && surgeState === 'idle'){
+      surgeState = 'warn';
+      surgeTimer = 0.45;
+      // Next surge in interval ± 30%
+      surgeCountdown = cfg.surgeInterval * (0.85 + Math.random() * 0.3);
+      queueToast({ tag:'// 警告', word:'SURGE', color:[180,40,40],
+                   brief:'信号加速——抓紧。', dur:1000 });
+    }
+    if(surgeState === 'warn'){
+      surgeTimer -= sec;
+      if(surgeTimer <= 0){ surgeState = 'active'; surgeTimer = cfg.surgeDuration; }
+    }
+    if(surgeState === 'active'){
+      surgeTimer -= sec;
+      if(surgeTimer <= 0) surgeState = 'idle';
+    }
+  }
+
+  // ── Scroll velocity ────────────────────────────────────────────────────────
+  if(surgeState === 'active'){
+    // Instant slam to surge speed, finger slow has no effect during surge
+    scrollVel += (cfg.surgeSpeed - scrollVel) * 0.18;
+  } else {
+    const targetVel = hasFingers ? cfg.scrollSlow : cfg.scrollNorm;
+    scrollVel += (targetVel - scrollVel) * 0.05;
+  }
+  scrollY += scrollVel * sec;
 
   updateGeoms(sec);
 
@@ -980,6 +1025,18 @@ function draw(){
     ctx.fillRect(0,50,W*db.danger,3);
   }
 
+  // ── Surge overlay ────────────────────────────────────────────────────────
+  if(surgeState === 'warn' || surgeState === 'active'){
+    const pulse = surgeState === 'warn'
+      ? Math.abs(Math.sin(pulseT * 80)) * 0.18   // rapid flash during warning
+      : 0.10 + Math.abs(Math.sin(pulseT * 40)) * 0.06; // steady glow during surge
+    // Red vignette on all four edges
+    const vg = ctx.createRadialGradient(W/2, H/2, H*0.28, W/2, H/2, H*0.75);
+    vg.addColorStop(0, `rgba(180,30,20,0)`);
+    vg.addColorStop(1, `rgba(180,30,20,${pulse.toFixed(3)})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+
   ctx.restore(); // end screen shake
 }
 
@@ -1004,6 +1061,9 @@ function startGame(){
   found=new Set(); combosFound=new Set(); missed=0; trapHits=0;
   scrollY=0; scrollVel=0; pulseT=0;
   geoms=[]; screenShake=0; streak=0;
+  surgeState='idle'; surgeTimer=0;
+  // First surge delayed — give player time to settle in
+  surgeCountdown = (lvCFG().surgeInterval || 99) * (0.6 + Math.random() * 0.4);
   timeLeft=lvCFG().time; phase='idle';
   updateScore();
   resize(); layout();
