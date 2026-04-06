@@ -98,23 +98,26 @@ body{border-radius:24px;overflow:hidden}
 </div>
 
 <script>
-// ─── LEVELS ───────────────────────────────────────────────────────────────────
-//
+// ─────────────────────────────────────────────────────────────────────────────
+//  LEVEL DATA
 //  layoutMode:
-//    'prose'  — flowing paragraph text, \n\n = paragraph break with extra gap
-//    'stream' — each \n line is its own row, \t-prefixed lines are indented
-//    'verse'  — each \n line is centered, \n\n = stanza gap
+//    'prose'  — flowing paragraphs, \n\n = paragraph gap
+//    'stream' — narrow column, each \n = new row, \t = indented row
+//    'verse'  — centered lines, \n\n = stanza gap
 //
+//  allTrapKeys  — full list of possible traps in this passage (superset)
+//  trapKeys     — active traps for this difficulty level (subset of allTrapKeys)
+//  geomCount    — number of floating geometric disturbers (0 for intro levels)
+// ─────────────────────────────────────────────────────────────────────────────
 const LEVELS = [
 
   // ── L1: INIT — 语义之源 ─────────────────────────────────────────────────────
-  // Layout: prose paragraphs — like reading a novel column
   {
     label:'L1', name:'INIT', desc:'语义之源',
-    time:90, fs:17, lspace:46, margin:28,
-    scrollNorm:62, scrollSlow:11,
-    layoutMode:'prose',
+    time:90, fs:17, lspace:46, margin:28, scrollNorm:62, scrollSlow:11,
+    layoutMode:'prose', geomCount:0,
     trapKeys:['static','ghost'],
+    allTrapKeys:['static','ghost','ozone','lightning','rain','gaps'],
 
     passage:
       'the city never slept data streamed through neural pathways in endless cascades\n' +
@@ -175,13 +178,12 @@ const LEVELS = [
   },
 
   // ── L2: SCAN — 注意力场 ──────────────────────────────────────────────────────
-  // Layout: stream / terminal — narrow left column, indented sub-lines (\t)
   {
     label:'L2', name:'SCAN', desc:'注意力场',
-    time:80, fs:14, lspace:36, margin:22,
-    scrollNorm:90, scrollSlow:15,
-    layoutMode:'stream',
+    time:80, fs:14, lspace:36, margin:22, scrollNorm:90, scrollSlow:15,
+    layoutMode:'stream', geomCount:0,
     trapKeys:['error','noise','corrupt'],
+    allTrapKeys:['error','noise','corrupt','signal','layer'],
 
     passage:
       'the query reaches across the sequence\n' +
@@ -245,13 +247,12 @@ const LEVELS = [
   },
 
   // ── L3: DEEP — 涌现之谷 ──────────────────────────────────────────────────────
-  // Layout: verse / poetry — each line centered, stanza gaps
   {
     label:'L3', name:'DEEP', desc:'涌现之谷',
-    time:70, fs:19, lspace:54, margin:32,
-    scrollNorm:44, scrollSlow:8,
-    layoutMode:'verse',
+    time:70, fs:19, lspace:54, margin:32, scrollNorm:44, scrollSlow:8,
+    layoutMode:'verse', geomCount:0,
     trapKeys:['void','dissolve','fragment'],
+    allTrapKeys:['void','dissolve','fragment','stirs','node','quiet'],
 
     passage:
       'something stirs\n' +
@@ -332,13 +333,54 @@ const LEVELS = [
   },
 ];
 
-let currentLevel = 0;
-function lvCFG()    { return LEVELS[currentLevel]; }
-function lvFS()     { return lvCFG().fs; }
-function lvLSPACE() { return lvCFG().lspace; }
-function lvGOLD()   { return lvCFG().gold; }
+// ─────────────────────────────────────────────────────────────────────────────
+//  INFINITE LEVEL GENERATOR
+//  After L3, levels cycle through the 3 passages with increasing difficulty.
+//  tier = floor(n/3): 0=handcrafted, 1=hard, 2=brutal, 3=void...
+// ─────────────────────────────────────────────────────────────────────────────
+const GEN_NAMES = ['ECHO','FLUX','SURGE','STORM','VOID+','CHAOS','FRAG','DEEP+'];
+const GEN_DESCS = ['信号重启','频率偏移','峰值涌现','噪声暴风','虚空解码','混沌映射','碎片风暴','核心剥离'];
 
-// ─── GLITCH ───────────────────────────────────────
+function generateLevel(n){
+  const src   = LEVELS[n % 3];
+  const tier  = Math.floor(n / 3); // tier 1 starts at L4
+  const gen   = (n - 3);           // 0-indexed within generated levels
+
+  // Unlock more traps each tier
+  const trapCount = Math.min(src.allTrapKeys.length, src.trapKeys.length + tier);
+  const trapKeys  = src.allTrapKeys.slice(0, trapCount);
+
+  // Geometry disturbers: tier1=1, tier2=2, tier3=3...
+  const geomCount    = Math.min(tier, 4);
+  const geomStrength = 1.0 + (tier - 1) * 0.8;
+
+  // Shorter time, faster scroll, min time 30s
+  const time       = Math.max(30, src.time - (tier - 1) * 8);
+  const scrollNorm = Math.min(Math.round(src.scrollNorm * (1 + (tier - 1) * 0.22)), 200);
+  const scrollSlow = Math.min(Math.round(src.scrollSlow * (1 + (tier - 1) * 0.22)), 38);
+
+  const nameIdx = gen % GEN_NAMES.length;
+  return {
+    ...src,
+    label:      `L${n + 1}`,
+    name:       GEN_NAMES[nameIdx],
+    desc:       GEN_DESCS[nameIdx],
+    time, scrollNorm, scrollSlow,
+    trapKeys, geomCount, geomStrength,
+    generated: true,
+  };
+}
+
+let currentLevel = 0;
+function getLevel(n)  { return n < LEVELS.length ? LEVELS[n] : generateLevel(n); }
+function lvCFG()      { return getLevel(currentLevel); }
+function lvFS()       { return lvCFG().fs; }
+function lvLSPACE()   { return lvCFG().lspace; }
+function lvGOLD()     { return lvCFG().gold; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  GLITCH
+// ─────────────────────────────────────────────────────────────────────────────
 const GLITCH_CHARS = '!@#$%^&*~<>[]{}?|01_';
 function glitchText(text, seed){
   let out = '';
@@ -346,7 +388,9 @@ function glitchText(text, seed){
   return out;
 }
 
-// ─── CONSTANTS ────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
 const FONT      = `ui-monospace,'SF Mono',Menlo,Consolas,monospace`;
 const TOP       = 90;
 const SPRING    = 0.038;
@@ -358,7 +402,9 @@ const BLAST_R   = 140;
 const SCRAMBLE_T= 3.2;
 const TRAP_RGB  = [180, 40, 40];
 
-// ─── STATE ────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────────────────────
 let words        = [];
 let totalPassageH= 0;
 let phase        = 'idle';
@@ -375,19 +421,19 @@ let bursts       = [];
 let missedFx     = [];
 let pointers     = {};
 let pulseT       = 0;
+// new
+let geoms        = [];
+let screenShake  = 0;
+let streak       = 0;
 
-// ─── PASSAGE PARSING ──────────────────────────────
-// Both computePositions and flatPassageTokens must process lines identically.
-// Passage format:
-//   \n   = line separator (hard break in stream/verse, paragraph continuation in prose)
-//   \n\n = blank line (paragraph/stanza gap)
-//   \t   = line-start indent marker (stream mode only)
-
+// ─────────────────────────────────────────────────────────────────────────────
+//  PASSAGE PARSING
+// ─────────────────────────────────────────────────────────────────────────────
 function flatPassageTokens(passage){
   const tokens = [];
-  for(const rawLine of passage.split('\n')){
-    if(rawLine.trim()==='') continue;
-    for(const t of rawLine.trim().split(/\s+/)) if(t) tokens.push(t);
+  for(const raw of passage.split('\n')){
+    if(raw.trim()==='') continue;
+    for(const t of raw.trim().split(/\s+/)) if(t) tokens.push(t);
   }
   return tokens;
 }
@@ -396,41 +442,35 @@ function computePositions(cfg){
   const { passage, layoutMode, fs, lspace, margin } = cfg;
   ctx.font = `${fs}px ${FONT}`;
   const spW = ctx.measureText(' ').width;
-  const positions = []; // { hx, hy, tw } per token, parallel to flatPassageTokens
+  const positions = [];
   const rawLines  = passage.split('\n');
-  let lineN = 0; // fractional line counter
+  let lineN = 0;
 
   if(layoutMode === 'prose'){
     let lx = 0;
     const maxW = W - margin * 2;
-    for(const rawLine of rawLines){
-      if(rawLine.trim()===''){
-        if(lx > 0){ lineN++; lx = 0; } // snap to line start
-        lineN += 0.55;                   // paragraph gap
-        continue;
+    for(const raw of rawLines){
+      if(raw.trim()===''){
+        if(lx > 0){ lineN++; lx = 0; }
+        lineN += 0.55; continue;
       }
-      for(const text of rawLine.trim().split(/\s+/).filter(Boolean)){
+      for(const text of raw.trim().split(/\s+/).filter(Boolean)){
         const tw = ctx.measureText(text).width;
         if(lx + tw > maxW && lx > 0){ lineN++; lx = 0; }
         positions.push({ hx: margin + lx + tw/2, hy: TOP + lineN * lspace, tw });
         lx += tw + spW;
       }
     }
-
   } else if(layoutMode === 'stream'){
-    // Narrow left column; \t-prefixed lines are indented
-    const colW    = Math.min(W * 0.62, 310);
-    for(const rawLine of rawLines){
-      if(rawLine.trim()===''){
-        lineN += 0.6; // section gap
-        continue;
-      }
-      const isInd  = rawLine.startsWith('\t');
+    const colW = Math.min(W * 0.62, 310);
+    for(const raw of rawLines){
+      if(raw.trim()===''){lineN += 0.6; continue;}
+      const isInd = raw.startsWith('\t');
       const indent = isInd ? 22 : 0;
-      const lm     = margin + indent;
-      const avail  = colW - indent;
+      const lm = margin + indent;
+      const avail = colW - indent;
       let lx = 0;
-      for(const text of rawLine.trim().split(/\s+/).filter(Boolean)){
+      for(const text of raw.trim().split(/\s+/).filter(Boolean)){
         const tw = ctx.measureText(text).width;
         if(lx + tw > avail && lx > 0){ lineN++; lx = 0; }
         positions.push({ hx: lm + lx + tw/2, hy: TOP + lineN * lspace, tw });
@@ -438,15 +478,10 @@ function computePositions(cfg){
       }
       lineN++;
     }
-
   } else if(layoutMode === 'verse'){
-    // Each non-blank line centered
-    for(const rawLine of rawLines){
-      if(rawLine.trim()===''){
-        lineN += 0.8; // stanza gap
-        continue;
-      }
-      const tokens = rawLine.trim().split(/\s+/).filter(Boolean);
+    for(const raw of rawLines){
+      if(raw.trim()===''){lineN += 0.8; continue;}
+      const tokens = raw.trim().split(/\s+/).filter(Boolean);
       const totalW = tokens.reduce((s,t) => s + ctx.measureText(t).width + spW, -spW);
       let lx = Math.max(margin, (W - totalW) / 2);
       for(const text of tokens){
@@ -457,18 +492,18 @@ function computePositions(cfg){
       lineN++;
     }
   }
-
   return positions;
 }
 
-// ─── LAYOUT ───────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  LAYOUT
+// ─────────────────────────────────────────────────────────────────────────────
 function layout(){
   const cfg      = lvCFG();
   const positions= computePositions(cfg);
   const tokens   = flatPassageTokens(cfg.passage);
   const usedGold = new Set(), usedTrap = new Set();
   words = [];
-
   for(let i=0; i<tokens.length; i++){
     const text = tokens[i];
     const { hx, hy, tw } = positions[i] || { hx:0, hy:0, tw:10 };
@@ -501,7 +536,9 @@ function repositionHomes(){
   totalPassageH = Math.max(...words.map(w=>w.hy)) + lvLSPACE()*3;
 }
 
-// ─── CANVAS RESIZE ────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  CANVAS RESIZE
+// ─────────────────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
 let W=0, H=0;
@@ -512,7 +549,105 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 
-// ─── SCORE DOM ────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  GEOMETRIC DISTURBERS
+//  Shapes float in screen-space, pushing words out of position.
+//  Their repulsion uses layout-space coordinates (screen y + scrollY).
+// ─────────────────────────────────────────────────────────────────────────────
+const GEOM_TYPES = ['circle','ring','diamond'];
+
+function spawnGeom(){
+  const cfg   = lvCFG();
+  const str   = cfg.geomStrength || 1.0;
+  const size  = 28 + Math.random() * 44;
+  // Enter from a random screen edge
+  const edge  = Math.floor(Math.random() * 4);
+  let x, y, vx, vy;
+  const spd = 18 + Math.random() * 22;
+  if(edge===0){ x=Math.random()*W; y=-size*2; vx=(Math.random()-.5)*spd*.6; vy=spd; }
+  else if(edge===1){ x=W+size*2; y=Math.random()*H; vx=-spd; vy=(Math.random()-.5)*spd*.6; }
+  else if(edge===2){ x=Math.random()*W; y=H+size*2; vx=(Math.random()-.5)*spd*.6; vy=-spd; }
+  else { x=-size*2; y=Math.random()*H; vx=spd; vy=(Math.random()-.5)*spd*.6; }
+
+  geoms.push({
+    x, y, vx, vy,
+    type: GEOM_TYPES[Math.floor(Math.random()*GEOM_TYPES.length)],
+    size,
+    spin: Math.random()*Math.PI*2,
+    spinV: (Math.random()-.5) * 0.015,
+    repelR: size * 2.8,
+    strength: str * (1.2 + Math.random() * 1.0),
+    alive: true,
+  });
+}
+
+function updateGeoms(sec){
+  const cfg       = lvCFG();
+  const target    = cfg.geomCount || 0;
+
+  // Spawn up to target count
+  while(geoms.length < target) spawnGeom();
+
+  for(const g of geoms){
+    g.x    += g.vx * sec;
+    g.y    += g.vy * sec;
+    g.spin += g.spinV;
+
+    // Gentle scroll parallax — geoms drift upward with the text (at 20% speed)
+    g.y -= scrollVel * sec * 0.20;
+
+    // Soft bounce off screen edges instead of teleporting, keeps them in viewport
+    if(g.x < -g.size*3 || g.x > W+g.size*3 || g.y < -g.size*3 || g.y > H+g.size*3){
+      // Respawn from opposite edge
+      g.alive = false;
+    }
+
+    // Apply repulsion to nearby words (in layout space)
+    const gly = g.y + scrollY;
+    for(const w of words){
+      const dx = w.x - g.x, dy = w.y - gly;
+      const d  = Math.sqrt(dx*dx + dy*dy);
+      if(d < g.repelR && d > 0.5){
+        const f = (1 - d/g.repelR) * g.strength * 0.7;
+        w.vx += dx/d * f; w.vy += dy/d * f;
+      }
+    }
+  }
+  geoms = geoms.filter(g=>g.alive);
+}
+
+function drawGeoms(){
+  for(const g of geoms){
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(g.spin);
+
+    const alpha = 0.07;
+    ctx.strokeStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},${alpha * 3})`;
+    ctx.lineWidth   = 1.2;
+
+    if(g.type === 'circle'){
+      ctx.beginPath(); ctx.arc(0, 0, g.size, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},${alpha * 0.5})`;
+      ctx.fill(); ctx.stroke();
+    } else if(g.type === 'ring'){
+      ctx.beginPath(); ctx.arc(0, 0, g.size, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, g.size*.55, 0, Math.PI*2); ctx.stroke();
+    } else { // diamond
+      const s = g.size;
+      ctx.beginPath();
+      ctx.moveTo(0,-s); ctx.lineTo(s*.65,0); ctx.lineTo(0,s); ctx.lineTo(-s*.65,0);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},${alpha * 0.4})`;
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SCORE DOM
+// ─────────────────────────────────────────────────────────────────────────────
 function updateScore(){
   const lv   = lvCFG();
   const mins = Math.floor(timeLeft/60);
@@ -522,9 +657,13 @@ function updateScore(){
   document.getElementById('sc-found').textContent = `${found.size} / ${lvGOLD().length}`;
 }
 
-// ─── TRAP TRIGGER ─────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  TRAP TRIGGER
+// ─────────────────────────────────────────────────────────────────────────────
 function triggerTrap(w){
   w.trapTriggered = true; trapHits++;
+  streak = 0; // break streak
+  screenShake = Math.min(1.0, screenShake + 0.7); // shake!
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:[180,40,40], big:true });
   queueToast({ tag:'// 干扰', word:'ERROR', color:[180,40,40],
                brief:'信号污染——附近的词被打乱了。', dur:2500 });
@@ -543,7 +682,9 @@ function triggerTrap(w){
   }
 }
 
-// ─── UPDATE ───────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  UPDATE
+// ─────────────────────────────────────────────────────────────────────────────
 function update(dt){
   if(phase!=='explore') return;
   pulseT += dt*0.018;
@@ -553,11 +694,15 @@ function update(dt){
   updateScore();
   if(timeLeft<=0){ checkEnd(); return; }
 
+  screenShake = Math.max(0, screenShake - sec*2.8);
+
   const cfg = lvCFG();
   const hasFingers = Object.keys(pointers).length>0;
   const targetVel  = hasFingers ? cfg.scrollSlow : cfg.scrollNorm;
   scrollVel += (targetVel-scrollVel)*0.05;
   scrollY   += scrollVel*sec;
+
+  updateGeoms(sec);
 
   const pts = Object.values(pointers);
 
@@ -597,9 +742,9 @@ function update(dt){
     if(w.goldIndex>=0&&!found.has(w.goldIndex)&&!w.goldMissed&&!w.corrupted){
       let bonus=0;
       for(const p of pts){ const d=Math.hypot(p.x-w.hx,p.y+scrollY-w.hy); if(d<140) bonus=Math.max(bonus,1-d/140); }
-      w.goldAlpha+=(bonus-w.goldAlpha)*0.22;   // 快速浮现
+      w.goldAlpha+=(bonus-w.goldAlpha)*0.22;
       if(w.goldAlpha>0.42){ w.revealTimer+=sec; if(w.revealTimer>=0.42) collectWord(w); }
-      else w.revealTimer=Math.max(0, w.revealTimer-sec*0.6); // 慢消退，扫过有余韵
+      else w.revealTimer=Math.max(0, w.revealTimer-sec*0.6);
     }
 
     if(w.trapWord&&!w.trapTriggered){
@@ -619,15 +764,24 @@ function update(dt){
   if(found.size===lvGOLD().length) checkEnd();
 }
 
-// ─── COLLECT ──────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  COLLECT
+// ─────────────────────────────────────────────────────────────────────────────
 function collectWord(w){
   const gi=w.goldIndex; if(found.has(gi)) return;
-  found.add(gi);
+  found.add(gi); streak++;
   const g=lvGOLD()[gi]; updateScore();
-  bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });          // 外扩环
-  bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true }); // 内闪
+  bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
+  bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true });
   queueToast({ tag:'// 发现', word:g.text.toUpperCase(), color:g.rgb,
                brief:`${g.cn}  —  ${g.brief}`, dur:4000 });
+
+  // Streak bonus at 3 / 5 / 7
+  if(streak === 3 || streak === 5 || streak === 7){
+    queueToast({ tag:'// 连击', word:`×${streak}`, color:[200,160,20],
+                 brief:`连续收集 ${streak} 个概念词，没有踩到陷阱。`, dur:3000 });
+  }
+
   const gIdxs=lvGOLD().reduce((a,_,i)=>lvGOLD()[i].group===g.group?[...a,i]:a,[]);
   if(gIdxs.every(i=>found.has(i))&&!combosFound.has(g.group)){
     combosFound.add(g.group);
@@ -642,7 +796,9 @@ function checkEnd(){
   phase='ending'; setTimeout(showEnd,800);
 }
 
-// ─── TOAST ────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  TOAST
+// ─────────────────────────────────────────────────────────────────────────────
 function queueToast(data){ toastQueue.push(data); if(!toastTimer) showNextToast(); }
 function showNextToast(){
   if(!toastQueue.length){ toastTimer=null; return; }
@@ -658,35 +814,55 @@ function showNextToast(){
   },d.dur);
 }
 
-// ─── END / NEXT LEVEL ─────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  END / NEXT LEVEL
+// ─────────────────────────────────────────────────────────────────────────────
 function showEnd(){
   phase='idle';
   const lv=lvCFG(), gold=lvGOLD(), total=found.size;
-  const stars=total>=gold.length?3:total>=(gold.length*0.625|0)?2:total>=3?1:0;
-  const isLast=currentLevel===LEVELS.length-1;
+  const pct=total/gold.length;
+  const stars=pct>=1?3:pct>=0.625?2:pct>=0.375?1:0;
+
   document.getElementById('e-title').textContent=
     total===gold.length?'COMPLETE':total>=(gold.length>>1)?'PARTIAL':'SIGNAL LOST';
   document.getElementById('e-lv').textContent=`${lv.label} · ${lv.name} · ${lv.desc}`;
   document.getElementById('e-rows').innerHTML=gold.map((g,i)=>{
     const st=found.has(i)?'✓':(words.find(w=>w.goldIndex===i)?.goldMissed?'✗':'·');
-    const dim=st==='·'?',0.30':',.88';
+    const dim=st==='·'?',0.28':',.88';
     return `<span style="color:rgba(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]}${dim})">${g.text}&nbsp;${st}</span>`;
   }).join('');
   document.getElementById('e-score').innerHTML=
     `${'★'.repeat(stars)+'☆'.repeat(3-stars)}&nbsp;&nbsp;${total}/${gold.length} 词&nbsp;&nbsp;${missed} 丢失&nbsp;&nbsp;${trapHits} 被炸<br>`+
-    (combosFound.size>0?`组合解锁 ${combosFound.size}/3`:'无组合');
-  document.getElementById('e-next').style.display=isLast?'none':'';
-  document.getElementById('e-retry').textContent=isLast?'重新开始':'再来一次';
-  if(isLast) document.getElementById('e-retry').setAttribute('onpointerdown','currentLevel=0;startGame()');
-  else       document.getElementById('e-retry').setAttribute('onpointerdown','startGame()');
+    (combosFound.size>0?`组合解锁 ${combosFound.size}/3`:'无组合')+
+    (streak>=3?`&nbsp;&nbsp;最长连击 ${streak}`:'');
+
+  // Always show next level (infinite)
+  document.getElementById('e-next').style.display='';
+  document.getElementById('e-retry').textContent='再来一次';
+  document.getElementById('e-retry').setAttribute('onpointerdown','startGame()');
   document.getElementById('end-ov').classList.remove('gone');
 }
 
-function nextLevel(){ if(currentLevel<LEVELS.length-1){ currentLevel++; startGame(); } }
+function nextLevel(){ currentLevel++; startGame(); }
 
-// ─── DRAW ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  DRAW
+// ─────────────────────────────────────────────────────────────────────────────
 function draw(){
+  // Screen shake transform
+  ctx.save();
+  if(screenShake > 0){
+    ctx.translate(
+      (Math.random()-.5)*screenShake*7,
+      (Math.random()-.5)*screenShake*5
+    );
+  }
+
   ctx.fillStyle='#f5f0e6'; ctx.fillRect(0,0,W,H);
+
+  // Geometric disturbers drawn under text
+  drawGeoms();
+
   const fs=lvFS(), gold=lvGOLD();
   ctx.font=`${fs}px ${FONT}`; ctx.textAlign='center'; ctx.textBaseline='middle';
 
@@ -699,7 +875,7 @@ function draw(){
     if(w.scrambleTimer>0){
       const fade=w.scrambleTimer<0.6?w.scrambleTimer/0.6:1;
       const chars=glitchText(w.text, pulseT*10+w.scrambleSeed);
-      const jx=(Math.random()-0.5)*4, jy=(Math.random()-0.5)*3;
+      const jx=(Math.random()-.5)*4, jy=(Math.random()-.5)*3;
       ctx.fillStyle=`rgba(${TRAP_RGB[0]},${TRAP_RGB[1]},${TRAP_RGB[2]},${(fade*0.60).toFixed(2)})`;
       ctx.fillText(chars,w.x+jx,sy+jy); continue;
     }
@@ -727,7 +903,7 @@ function draw(){
         ctx.shadowColor=`rgba(${gr},${gg},${gb},0.28)`; ctx.shadowBlur=8+pulse*4;
         ctx.fillStyle=`rgba(${dr},${dg},${db},0.92)`; ctx.fillText(w.text,w.x,sy);
         ctx.shadowBlur=0; ctx.shadowColor='transparent';
-        const prog=Math.min(1,w.revealTimer/1.0);
+        const prog=Math.min(1,w.revealTimer/0.42);
         if(prog>0){
           ctx.beginPath(); ctx.arc(w.x,sy,w.tw/2+8,-Math.PI/2,-Math.PI/2+prog*Math.PI*2);
           ctx.strokeStyle=`rgba(${gr},${gg},${gb},0.50)`; ctx.lineWidth=1.5; ctx.stroke();
@@ -745,7 +921,7 @@ function draw(){
       if(a>0.45){
         const flicker=Math.sin(pulseT*35)*0.22+0.78;
         ctx.fillStyle=`rgba(${dr},${dg},${db},${(0.90*flicker).toFixed(2)})`;
-        const prog=Math.min(1,w.trapTimer/0.4);
+        const prog=Math.min(1,w.trapTimer/0.28);
         if(prog>0){
           ctx.beginPath(); ctx.arc(w.x,sy,w.tw/2+8,-Math.PI/2,-Math.PI/2+prog*Math.PI*2);
           ctx.strokeStyle=`rgba(${TRAP_RGB[0]},${TRAP_RGB[1]},${TRAP_RGB[2]},0.60)`; ctx.lineWidth=1.5; ctx.stroke();
@@ -762,6 +938,7 @@ function draw(){
     ctx.fillText(w.text,w.x,sy);
   }
 
+  // Burst rings
   for(const b of bursts){
     const [r,g,bb]=b.rgb;
     if(b.big){
@@ -771,24 +948,24 @@ function draw(){
       ctx.beginPath(); ctx.arc(b.x,b.screenY,r2,0,Math.PI*2);
       ctx.strokeStyle=`rgba(${r},${g},${bb},${(b.t*0.30).toFixed(2)})`; ctx.lineWidth=1; ctx.stroke();
     } else if(b.flash){
-      // 快速内填充闪光
       const radius=(1-b.t)*28;
       ctx.beginPath(); ctx.arc(b.x,b.screenY,radius,0,Math.PI*2);
       ctx.fillStyle=`rgba(${r},${g},${bb},${(b.t*0.40).toFixed(2)})`; ctx.fill();
     } else {
-      // 外扩环，更大
       const radius=(1-b.t)*80;
       ctx.beginPath(); ctx.arc(b.x,b.screenY,radius,0,Math.PI*2);
       ctx.strokeStyle=`rgba(${r},${g},${bb},${(b.t*0.60).toFixed(2)})`; ctx.lineWidth=2.5; ctx.stroke();
     }
   }
 
+  // Missed labels
   ctx.textAlign='left'; ctx.textBaseline='top'; ctx.font=`11px ${FONT}`;
   for(const e of missedFx){
     ctx.fillStyle=`rgba(160,30,30,${(e.t*0.58).toFixed(2)})`;
     ctx.fillText(`↑ ${e.label}`, Math.max(8,Math.min(W-80,e.x-20)),10);
   }
 
+  // Gradient fades
   const tg=ctx.createLinearGradient(0,0,0,92);
   tg.addColorStop(0,'#f5f0e6'); tg.addColorStop(1,'rgba(245,240,230,0)');
   ctx.fillStyle=tg; ctx.fillRect(0,0,W,92);
@@ -796,21 +973,28 @@ function draw(){
   bg.addColorStop(0,'rgba(245,240,230,0)'); bg.addColorStop(1,'#f5f0e6');
   ctx.fillStyle=bg; ctx.fillRect(0,H-80,W,80);
 
+  // Danger bars
   for(const db of dangerBars){
     const [r,g,b]=db.rgb;
     ctx.fillStyle=`rgba(${r},${g},${b},${(db.danger*0.50).toFixed(2)})`;
     ctx.fillRect(0,50,W*db.danger,3);
   }
+
+  ctx.restore(); // end screen shake
 }
 
-// ─── INPUT ────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  INPUT
+// ─────────────────────────────────────────────────────────────────────────────
 function getXY(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
 canvas.addEventListener('pointerdown',  e=>{ canvas.setPointerCapture(e.pointerId); pointers[e.pointerId]=getXY(e); });
 canvas.addEventListener('pointermove',  e=>{ pointers[e.pointerId]=getXY(e); });
 canvas.addEventListener('pointerup',    e=>{ delete pointers[e.pointerId]; });
 canvas.addEventListener('pointercancel',e=>{ delete pointers[e.pointerId]; });
 
-// ─── START ────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  START
+// ─────────────────────────────────────────────────────────────────────────────
 function startGame(){
   document.getElementById('start').classList.add('gone');
   document.getElementById('end-ov').classList.add('gone');
@@ -819,13 +1003,16 @@ function startGame(){
   toastQueue=[]; bursts=[]; missedFx=[];
   found=new Set(); combosFound=new Set(); missed=0; trapHits=0;
   scrollY=0; scrollVel=0; pulseT=0;
+  geoms=[]; screenShake=0; streak=0;
   timeLeft=lvCFG().time; phase='idle';
   updateScore();
   resize(); layout();
   phase='explore';
 }
 
-// ─── LOOP ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  LOOP
+// ─────────────────────────────────────────────────────────────────────────────
 let lastT=0;
 function loop(t){
   const dt=Math.min((t-lastT)/16.67,3); lastT=t;
