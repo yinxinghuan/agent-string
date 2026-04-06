@@ -66,6 +66,8 @@ body{border-radius:24px;overflow:hidden}
 #e-frac{font-size:clamp(54px,14vw,80px);letter-spacing:6px;color:rgba(20,12,5,.84);
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;line-height:1;
   text-align:center;margin:4px 0 0}
+#e-pts{font-size:10px;letter-spacing:4px;color:rgba(20,12,5,.25);text-align:center;
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin:2px 0 0}
 #e-rows{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 12px;
   max-width:300px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
 #e-rows span{font-size:12px;letter-spacing:1px;white-space:nowrap}
@@ -111,6 +113,7 @@ body{border-radius:24px;overflow:hidden}
     <div class="ov-rule"></div>
     <div id="e-title"></div>
     <div id="e-frac"></div>
+    <div id="e-pts">PTS</div>
     <div class="ov-rule"></div>
     <div id="e-rows"></div>
     <div class="ov-rule"></div>
@@ -160,9 +163,15 @@ const I18N={
     'toast.warn':   '// alert',
     'toast.streak': '// streak',
     'toast.combo':  '// combo',
+    'toast.time':   '// time+',
+    'toast.penalty':'// penalty',
+    'toast.lap':    '// lap',
     'trap.brief':   'signal corrupted — nearby words scattered.',
     'surge.brief':  'signal surging — hold on.',
     'streak.brief': n=>`${n} consecutive concepts, no traps.`,
+    'time.brief':   n=>`+${n}s — signal extended.`,
+    'penalty.brief':'−10 pts — false signal.',
+    'lap.brief':    n=>`lap ${n} complete.`,
     'end.missed':   n=>`${n} missed`,
     'end.blasted':  n=>`${n} blasted`,
     'end.streak':   n=>`streak ×${n}`,
@@ -183,9 +192,15 @@ const I18N={
     'toast.warn':   '// 警告',
     'toast.streak': '// 连击',
     'toast.combo':  '// 组合',
+    'toast.time':   '// 时间+',
+    'toast.penalty':'// 扣分',
+    'toast.lap':    '// 圈完成',
     'trap.brief':   '信号污染——附近的词被打乱了。',
     'surge.brief':  '信号加速——抓紧。',
     'streak.brief': n=>`连续收集 ${n} 个概念词，没有踩到陷阱。`,
+    'time.brief':   n=>`+${n}秒 — 信号延长。`,
+    'penalty.brief':'−10分 — 虚假信号。',
+    'lap.brief':    n=>`第 ${n} 圈完成。`,
     'end.missed':   n=>`${n} 丢失`,
     'end.blasted':  n=>`${n} 被炸`,
     'end.streak':   n=>`连击 ×${n}`,
@@ -275,6 +290,12 @@ function sfxComplete(){ [523,659,784,1047].forEach((f,i)=>_tone(f,'sine',0.17,0.
 function sfxPartial(){  [523,659].forEach((f,i)=>_tone(f,'sine',0.15,0.01,0.55,i*0.14)); }
 function sfxLost(){     [440,370,311].forEach((f,i)=>_tone(f,'sine',0.14,0.01,0.55,i*0.15)); }
 
+// Time extension — ascending bright chime
+function sfxTime(){ [659,880,1109].forEach((f,i)=>_tone(f,'sine',0.15,0.005,0.40,i*0.08)); }
+
+// Penalty hit — low buzz + noise
+function sfxPenalty(){ _tone(180,'sawtooth',0.28,0.002,0.20); _tone(130,'square',0.14,0.001,0.15,0.04); _noise(0.22,0.12,0.02); }
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  LEVEL DATA
 //  layoutMode:
@@ -355,6 +376,15 @@ const LEVELS = [
       { text:'meaning',   group:2, rgb:[200,85,0],   cn:'意义',
         brief:'意义不在词里，在词与词的关系里。',
         en_brief:'Meaning lives not in words, but in the relationships between them.' },
+      { text:'river',     type:'time',    addTime:15, group:0, rgb:[0,170,150], cn:'延续',
+        brief:'语言之河永不止息——信号延长。',
+        en_brief:'The river of language flows without end — signal extended.' },
+      { text:'sequences', type:'time',    addTime:12, group:0, rgb:[0,170,150], cn:'序列',
+        brief:'序列延续，信号持续——获得额外时间。',
+        en_brief:'Sequences carry the signal forward — time extended.' },
+      { text:'finite',    type:'penalty', group:0, rgb:[175,35,80], cn:'有限',
+        brief:'有限的代价——扣除10分。',
+        en_brief:'All finite things carry a cost — 10 pts deducted.' },
     ],
     combos: [
       { group:0, title:'有限的记忆',   brief:'有多少上下文就有多少记忆——边界一到，记忆消失。',
@@ -436,6 +466,15 @@ const LEVELS = [
       { text:'output',    group:2, rgb:[200,85,0],   cn:'输出', surge:true,
         brief:'最终层对"下一个词"的概率分布——知识的出口。',
         en_brief:"The final layer's probability distribution over the next word — the exit point of knowledge." },
+      { text:'momentum',  type:'time',    addTime:14, group:0, rgb:[0,170,150], cn:'动量',
+        brief:'势头积累，信号延续——获得额外时间。',
+        en_brief:'Momentum carries the signal forward — time extended.' },
+      { text:'robust',    type:'time',    addTime:11, group:0, rgb:[0,170,150], cn:'鲁棒',
+        brief:'越鲁棒，越持久——获得额外时间。',
+        en_brief:'The robust signal endures — time extended.' },
+      { text:'predicted', type:'penalty', group:0, rgb:[175,35,80], cn:'预测',
+        brief:'预测的代价——扣除10分。',
+        en_brief:'Prediction carries a cost when wrong — 10 pts deducted.' },
     ],
     combos: [
       { group:0, title:'查询即理解',   brief:'知道问什么，等于知道自己在找什么。注意力是有方向的认知。',
@@ -534,6 +573,15 @@ const LEVELS = [
       { text:'complexity',   group:2, rgb:[180,120,20], cn:'复杂性', surge:true,
         brief:'足够多的简单规则叠加，就会产生任何规则都无法单独解释的东西。',
         en_brief:'Enough simple rules layered together produce something none of them can explain alone.' },
+      { text:'potential',  type:'time',    addTime:16, group:0, rgb:[0,170,150], cn:'潜能',
+        brief:'潜能尚未释放——时间延长。',
+        en_brief:'Potential not yet spent — time extended.' },
+      { text:'sufficient', type:'time',    addTime:12, group:0, rgb:[0,170,150], cn:'充分',
+        brief:'充分的连接，充分的时间——信号延长。',
+        en_brief:'Sufficient connection, sufficient time — extended.' },
+      { text:'alone',      type:'penalty', group:0, rgb:[175,35,80], cn:'孤独',
+        brief:'单独承担意味着代价——扣除10分。',
+        en_brief:'No fragment carries meaning alone — 10 pts deducted.' },
     ],
     combos: [
       { group:0, title:'无声的在场',   brief:'觉知、沉默、痕迹——存在不需要被记录，才算真正存在过。',
@@ -598,6 +646,8 @@ function lvCFG()      { return getLevel(currentLevel); }
 function lvFS()       { return lvCFG().fs; }
 function lvLSPACE()   { return lvCFG().lspace; }
 function lvGOLD()     { return lvCFG().gold; }
+// Core gold words (not time/penalty) — required for lap completion
+function coreGoldIndices(){ return lvGOLD().map((_,i)=>i).filter(i=>{ const t=lvGOLD()[i].type; return !t||t==='gold'; }); }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  GLITCH
@@ -697,6 +747,8 @@ let surgeCountdown= 0;      // seconds until next surge
 let surgeTimer    = 0;      // remaining time in current warn/active phase
 let trapFontTimer  = 0;     // >0 = canvas uses GLITCH_FONT (brief flash)
 let signalHealth   = 4;     // 0–4: degrades on trap, repairs on streak
+let score          = 0;     // accumulated score
+let lapCount       = 0;     // completed laps
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PASSAGE PARSING
@@ -928,9 +980,11 @@ function updateScore(){
   const lv   = lvCFG();
   const mins = Math.floor(timeLeft/60);
   const secs = Math.floor(timeLeft%60);
-  document.getElementById('sc-level').textContent = lv.label;
+  const coreIdxs  = coreGoldIndices();
+  const coreFound = coreIdxs.filter(i=>found.has(i)).length;
+  document.getElementById('sc-level').textContent = lapCount>0?`${lv.label} ×${lapCount+1}`:lv.label;
   document.getElementById('sc-timer').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
-  document.getElementById('sc-found').textContent = `${found.size} / ${lvGOLD().length}`;
+  document.getElementById('sc-found').textContent = `${score}  ${coreFound}/${coreIdxs.length}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1024,14 +1078,40 @@ function update(dt){
   for(const w of words){
     const approxSy = w.hy-scrollY;
 
+    // ── Miss marker (core gold only) ────────────────────────────────────────
     if(w.goldIndex>=0 && !found.has(w.goldIndex) && !w.goldMissed && approxSy < -80){
-      w.goldMissed=true; missed++;
-      missedFx.push({ x:w.hx, t:1.5, label:lvGOLD()[w.goldIndex].text.toUpperCase() });
-      updateScore();
+      const _g=lvGOLD()[w.goldIndex];
+      if(!_g.type||_g.type==='gold'){
+        w.goldMissed=true; missed++;
+        missedFx.push({ x:w.hx, t:1.5, label:_g.text.toUpperCase() });
+        updateScore();
+      }
     }
 
-    if(!w.trapWord && w.goldIndex<0 && approxSy < -(lvLSPACE()*2)){
-      w.hy+=totalPassageH; w.y=w.hy; w.x=w.hx; w.vx=0; w.vy=0; continue;
+    // ── Word recycling ───────────────────────────────────────────────────────
+    if(approxSy < -(lvLSPACE()*2)){
+      if(w.goldIndex>=0){
+        const _g=lvGOLD()[w.goldIndex];
+        const isCore=!_g.type||_g.type==='gold';
+        if(isCore && !found.has(w.goldIndex)){
+          // Unfound core gold: cycle back (player gets another chance)
+          w.goldMissed=false; w.goldAlpha=0; w.revealTimer=0; w.corrupted=false;
+          w.hy+=totalPassageH; w.y=w.hy; w.x=w.hx; w.vx=0; w.vy=0; continue;
+        } else if(!isCore){
+          // Time/penalty: always cycle — can be collected again
+          found.delete(w.goldIndex); w.goldAlpha=0; w.revealTimer=0; w.goldMissed=false; w.corrupted=false;
+          w.hy+=totalPassageH; w.y=w.hy; w.x=w.hx; w.vx=0; w.vy=0; continue;
+        }
+        // Found core gold: stays put until lap reset pushes it forward
+      } else if(w.trapTriggered){
+        // Triggered trap: recycle so it can fire again
+        w.trapTriggered=false; w.trapAlpha=0; w.trapTimer=0;
+        w.hy+=totalPassageH; w.y=w.hy; w.x=w.hx; w.vx=0; w.vy=0; continue;
+      } else if(!w.trapWord){
+        // Regular word: recycle
+        w.hy+=totalPassageH; w.y=w.hy; w.x=w.hx; w.vx=0; w.vy=0; continue;
+      }
+      // Untriggered trap: stays in place
     }
 
     if(approxSy < -200 || approxSy > H+150){
@@ -1075,8 +1155,6 @@ function update(dt){
   for(const e of missedFx) e.t=Math.max(0,e.t-sec*0.9);
   bursts  =bursts.filter(b=>b.t>0);
   missedFx=missedFx.filter(e=>e.t>0);
-
-  if(found.size===lvGOLD().length) checkEnd();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1084,43 +1162,90 @@ function update(dt){
 // ─────────────────────────────────────────────────────────────────────────────
 function collectWord(w){
   const gi=w.goldIndex; if(found.has(gi)) return;
-  found.add(gi); streak++;
-  const g=lvGOLD()[gi]; updateScore();
+  found.add(gi);
+  const g=lvGOLD()[gi];
+
+  // ── Time extension word ──────────────────────────────────────────────────
+  if(g.type==='time'){
+    const add=g.addTime||15;
+    timeLeft=Math.min(timeLeft+add, lvCFG().time+200);
+    score+=5;
+    sfxTime();
+    bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
+    bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true });
+    queueToast({ tag:t('toast.time'), word:`+${add}S`, color:g.rgb,
+                 brief:locale==='zh'?`${g.cn}  —  ${g.brief}`:g.en_brief, dur:3000 });
+    updateScore(); return;
+  }
+
+  // ── Penalty word ─────────────────────────────────────────────────────────
+  if(g.type==='penalty'){
+    score=Math.max(0, score-10);
+    sfxPenalty();
+    screenShake=Math.min(1.0, screenShake+0.45);
+    bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, big:true });
+    queueToast({ tag:t('toast.penalty'), word:'−10', color:g.rgb,
+                 brief:locale==='zh'?`${g.cn}  —  ${g.brief}`:g.en_brief, dur:3000 });
+    updateScore(); return;
+  }
+
+  // ── Core gold word ───────────────────────────────────────────────────────
+  streak++; score+=10;
   sfxCollect(g.group);
-  // Surge-triggering gold words activate burst scroll
-  if(g.surge && surgeState === 'idle'){
-    surgeState = 'active';
-    surgeTimer = lvCFG().surgeDuration || 1.4;
-    sfxSurge();
+  if(g.surge && surgeState==='idle'){
+    surgeState='active'; surgeTimer=lvCFG().surgeDuration||1.4; sfxSurge();
   }
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true });
   queueToast({ tag:t('toast.found'), word:g.text.toUpperCase(), color:g.rgb,
                brief:locale==='zh'?`${g.cn}  —  ${g.brief}`:g.en_brief, dur:4000 });
 
-  // Streak bonus at 3 / 5 / 7 — also repairs signal health
-  if(streak === 3 || streak === 5 || streak === 7){
-    sfxStreak(streak);
-    if(signalHealth < 4){ signalHealth = Math.min(4, signalHealth + 1); }
+  if(streak===3||streak===5||streak===7){
+    sfxStreak(streak); score+=streak*5;
+    if(signalHealth<4){ signalHealth=Math.min(4,signalHealth+1); }
     queueToast({ tag:t('toast.streak'), word:`×${streak}`, color:[200,160,20],
                  brief:t('streak.brief',streak), dur:3000 });
   }
 
-  const gIdxs=lvGOLD().reduce((a,_,i)=>lvGOLD()[i].group===g.group?[...a,i]:a,[]);
+  // Combo: only among core gold words of same group
+  const gIdxs=lvGOLD().reduce((a,_,i)=>{
+    const _g=lvGOLD()[i]; return _g.group===g.group&&(!_g.type||_g.type==='gold')?[...a,i]:a;
+  },[]);
   if(gIdxs.every(i=>found.has(i))&&!combosFound.has(g.group)){
-    combosFound.add(g.group);
-    sfxCombo();
+    combosFound.add(g.group); sfxCombo(); score+=30;
     const combo=lvCFG().combos[g.group];
     queueToast({ tag:t('toast.combo'),
                  word:locale==='zh'?combo.title:combo.en_title, color:g.rgb,
                  brief:locale==='zh'?combo.brief:combo.en_brief, dur:5000 });
   }
-  if(found.size===lvGOLD().length) checkEnd();
+
+  updateScore();
+  checkLap();
 }
 
 function checkEnd(){
   if(phase==='ending') return;
   phase='ending'; setTimeout(showEnd,800);
+}
+
+function checkLap(){
+  const coreIdxs=coreGoldIndices();
+  if(!coreIdxs.every(i=>found.has(i))) return;
+  lapCount++;
+  const bonus=20, pts=50+lapCount*10;
+  timeLeft=Math.min(timeLeft+bonus, lvCFG().time+300);
+  score+=pts;
+  sfxComplete();
+  queueToast({ tag:t('toast.lap'), word:`LAP ${lapCount}`, color:[200,160,20],
+               brief:locale==='zh'?`圈完成 · +${bonus}s · +${pts}分`:`lap ${lapCount} complete · +${bonus}s · +${pts} pts`,
+               dur:5000 });
+  // Reset core gold words for next lap — push them forward one passage cycle
+  coreIdxs.forEach(i=>{
+    found.delete(i);
+    const ww=words.find(w=>w.goldIndex===i);
+    if(ww){ ww.goldAlpha=0; ww.revealTimer=0; ww.goldMissed=false; ww.corrupted=false; ww.hy+=totalPassageH; ww.y=ww.hy; }
+  });
+  updateScore();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1147,22 +1272,27 @@ function showNextToast(){
 // ─────────────────────────────────────────────────────────────────────────────
 function showEnd(){
   phase='idle';
-  const lv=lvCFG(), gold=lvGOLD(), total=found.size;
-  const pct=total/gold.length;
-  if(pct>=1) sfxComplete(); else if(pct>=0.375) sfxPartial(); else sfxLost();
+  const lv=lvCFG(), gold=lvGOLD();
+  const coreIdxs=coreGoldIndices();
+  const coreFound=coreIdxs.filter(i=>found.has(i)).length;
+  const pct=coreFound/coreIdxs.length;
+  if(lapCount>0||pct>=1) sfxComplete(); else if(pct>=0.375) sfxPartial(); else sfxLost();
 
   const lvDesc=locale==='zh'?lv.desc:(lv.en_desc||lv.desc);
   document.getElementById('e-lv').textContent=`${lv.label} · ${lv.name} · ${lvDesc}`;
   document.getElementById('e-title').textContent=
-    total===gold.length?'COMPLETE':total>=(gold.length>>1)?'PARTIAL':'SIGNAL LOST';
-  document.getElementById('e-frac').textContent=`${total} / ${gold.length}`;
-  document.getElementById('e-rows').innerHTML=gold.map((g,i)=>{
+    lapCount>0?(lapCount>1?`${lapCount} LAPS`:'1 LAP'):
+    pct>=1?'COMPLETE':pct>=0.375?'PARTIAL':'SIGNAL LOST';
+  document.getElementById('e-frac').textContent=`${score}`;
+  document.getElementById('e-rows').innerHTML=coreIdxs.map(i=>{
+    const g=gold[i];
     const st=found.has(i)?'✓':(words.find(w=>w.goldIndex===i)?.goldMissed?'✗':'·');
     const dim=st==='·'?',0.25':',.85';
     return `<span style="color:rgba(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]}${dim})">${g.text}&nbsp;${st}</span>`;
   }).join('');
 
   const parts=[];
+  if(lapCount>0) parts.push(locale==='zh'?`${lapCount}圈`:`${lapCount} lap${lapCount>1?'s':''}`);
   if(missed>0) parts.push(t('end.missed',missed));
   if(trapHits>0) parts.push(t('end.blasted',trapHits));
   if(streak>=3) parts.push(t('end.streak',streak));
@@ -1350,6 +1480,7 @@ function startGame(){
   geoms=[]; screenShake=0; streak=0;
   surgeState='idle'; surgeTimer=0;
   signalHealth=4; trapFontTimer=0;
+  score=0; lapCount=0;
   // First surge delayed — give player time to settle in
   surgeCountdown = (lvCFG().surgeInterval || 99) * (0.6 + Math.random() * 0.4);
   timeLeft=lvCFG().time; phase='idle';
