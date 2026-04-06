@@ -14,18 +14,22 @@ body{border-radius:24px;overflow:hidden}
     justify-content:center;background:#f5f0e6;transition:opacity .4s}
 .ov.gone{opacity:0;pointer-events:none}
 
-#s-title{font-size:clamp(20px,5vw,30px);letter-spacing:10px;color:rgba(20,12,5,.78);
-  margin-bottom:8px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
-#s-sub{font-size:11px;color:rgba(20,12,5,.32);letter-spacing:5px;margin-bottom:32px;
+.ov-inner{display:flex;flex-direction:column;align-items:center;width:min(320px,88vw)}
+.ov-label{font-size:10px;letter-spacing:6px;color:rgba(20,12,5,.28);
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;text-align:center}
+.ov-bigtitle{font-size:clamp(44px,11vw,64px);letter-spacing:14px;color:rgba(20,12,5,.82);
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;line-height:1;text-align:center}
+.ov-rule{width:100%;height:1px;background:rgba(20,12,5,.13);margin:18px 0}
+.ov-body{font-size:12px;letter-spacing:2px;color:rgba(20,12,5,.38);line-height:2.4;text-align:center;
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
-#s-body{font-size:15px;color:rgba(20,12,5,.50);line-height:2.4;text-align:center;
-  margin-bottom:40px;max-width:290px;font-family:-apple-system,sans-serif}
-#s-body b{color:rgba(20,12,5,.82);font-weight:500}
-#s-body em{color:rgba(160,30,30,.75);font-style:normal}
-.btn{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:5px;
-  color:rgba(20,12,5,.58);border:1px solid rgba(20,12,5,.22);background:transparent;
-  padding:14px 32px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent;
-  margin:6px 0}
+.btn-main{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:5px;
+  color:rgba(20,12,5,.72);border:1px solid rgba(20,12,5,.28);background:transparent;
+  padding:14px 36px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent;
+  margin-top:10px;width:100%}
+.btn-ghost{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:5px;
+  color:rgba(20,12,5,.30);border:none;background:transparent;
+  padding:12px 36px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent;
+  margin-top:4px}
 
 #score{position:fixed;top:0;left:0;right:0;z-index:15;display:flex;align-items:center;
   padding:13px 16px 18px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
@@ -45,17 +49,17 @@ body{border-radius:24px;overflow:hidden}
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:6px}
 #t-brief{font-size:15px;color:rgba(255,255,255,.82);line-height:1.7;font-family:-apple-system,sans-serif}
 
-#e-title{font-size:clamp(22px,5vw,32px);letter-spacing:7px;color:rgba(20,12,5,.78);
-  margin-bottom:6px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
-#e-lv{font-size:10px;letter-spacing:4px;color:rgba(20,12,5,.30);
-  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:16px}
-#e-rows{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;
-  margin:0 0 4px;max-width:320px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
-#e-rows span{font-size:13px;letter-spacing:1px;white-space:nowrap}
-#e-rule{width:36px;height:1px;background:rgba(20,12,5,.12);margin:14px auto}
-#e-score{font-size:13px;color:rgba(20,12,5,.40);margin-bottom:24px;
-  font-family:-apple-system,sans-serif;text-align:center;line-height:1.9}
-.e-btns{display:flex;flex-direction:column;align-items:center;gap:6px}
+#e-title{font-size:clamp(18px,4.5vw,26px);letter-spacing:10px;color:rgba(20,12,5,.40);
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;text-align:center}
+#e-frac{font-size:clamp(54px,14vw,80px);letter-spacing:6px;color:rgba(20,12,5,.84);
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;line-height:1;
+  text-align:center;margin:4px 0 0}
+#e-rows{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 12px;
+  max-width:300px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+#e-rows span{font-size:12px;letter-spacing:1px;white-space:nowrap}
+#e-score{font-size:10px;letter-spacing:3px;color:rgba(20,12,5,.30);text-align:center;
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;line-height:2.2}
+.e-btns{display:flex;flex-direction:column;align-items:center;width:100%}
 </style>
 </head>
 <body>
@@ -68,15 +72,16 @@ body{border-radius:24px;overflow:hidden}
 </div>
 
 <div id="start" class="ov">
-  <div id="s-title">SIGNAL</div>
-  <div id="s-sub">语义信号</div>
-  <div id="s-body">
-    数据在流动 · 扫动手指<br>
-    找到隐藏的<b>概念词</b>收集<br>
-    遇到<em>干扰词</em>会炸乱周围<br>
-    <b>时间到了就结算</b>
+  <div class="ov-inner">
+    <div class="ov-label">// SIGNAL · 语义信号</div>
+    <div class="ov-rule"></div>
+    <div class="ov-bigtitle">SIGNAL</div>
+    <div class="ov-rule"></div>
+    <div class="ov-body">扫动手指 · 寻找概念词<br>避开干扰 · 时间耗尽结算</div>
+    <div class="ov-rule"></div>
+    <button class="btn-main" onpointerdown="startGame()">开 始 扫 描</button>
+    <button class="btn-ghost" onpointerdown="showLeaderboard()">排 行 榜</button>
   </div>
-  <button class="btn" onpointerdown="startGame()">开始 →</button>
 </div>
 
 <div id="toast">
@@ -86,14 +91,34 @@ body{border-radius:24px;overflow:hidden}
 </div>
 
 <div id="end-ov" class="ov gone">
-  <div id="e-title"></div>
-  <div id="e-lv"></div>
-  <div id="e-rows"></div>
-  <div id="e-rule"></div>
-  <div id="e-score"></div>
-  <div class="e-btns">
-    <button class="btn" id="e-next" onpointerdown="nextLevel()">下一关 →</button>
-    <button class="btn" id="e-retry" onpointerdown="startGame()">再来一次</button>
+  <div class="ov-inner">
+    <div class="ov-label" id="e-lv"></div>
+    <div class="ov-rule"></div>
+    <div id="e-title"></div>
+    <div id="e-frac"></div>
+    <div class="ov-rule"></div>
+    <div id="e-rows"></div>
+    <div class="ov-rule"></div>
+    <div id="e-score"></div>
+    <div class="e-btns">
+      <button class="btn-main" id="e-next" onpointerdown="nextLevel()">下 一 关 →</button>
+      <button class="btn-ghost" id="e-retry" onpointerdown="startGame()">再 来 一 次</button>
+    </div>
+  </div>
+</div>
+
+<div id="lb-ov" class="ov gone">
+  <div class="ov-inner">
+    <div class="ov-label">// RANK · 排行榜</div>
+    <div class="ov-rule"></div>
+    <div class="ov-bigtitle" style="font-size:clamp(30px,7vw,44px);letter-spacing:10px">RANK</div>
+    <div class="ov-rule"></div>
+    <div style="font-size:11px;letter-spacing:4px;color:rgba(20,12,5,.25);
+      font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;text-align:center;padding:28px 0">
+      — 暂无数据 —
+    </div>
+    <div class="ov-rule"></div>
+    <button class="btn-ghost" onpointerdown="hideLeaderboard()">← 返 回</button>
   </div>
 </div>
 
@@ -865,30 +890,31 @@ function showNextToast(){
 function showEnd(){
   phase='idle';
   const lv=lvCFG(), gold=lvGOLD(), total=found.size;
-  const pct=total/gold.length;
-  const stars=pct>=1?3:pct>=0.625?2:pct>=0.375?1:0;
 
+  document.getElementById('e-lv').textContent=`${lv.label} · ${lv.name} · ${lv.desc}`;
   document.getElementById('e-title').textContent=
     total===gold.length?'COMPLETE':total>=(gold.length>>1)?'PARTIAL':'SIGNAL LOST';
-  document.getElementById('e-lv').textContent=`${lv.label} · ${lv.name} · ${lv.desc}`;
+  document.getElementById('e-frac').textContent=`${total} / ${gold.length}`;
   document.getElementById('e-rows').innerHTML=gold.map((g,i)=>{
     const st=found.has(i)?'✓':(words.find(w=>w.goldIndex===i)?.goldMissed?'✗':'·');
-    const dim=st==='·'?',0.28':',.88';
+    const dim=st==='·'?',0.25':',.85';
     return `<span style="color:rgba(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]}${dim})">${g.text}&nbsp;${st}</span>`;
   }).join('');
-  document.getElementById('e-score').innerHTML=
-    `${'★'.repeat(stars)+'☆'.repeat(3-stars)}&nbsp;&nbsp;${total}/${gold.length} 词&nbsp;&nbsp;${missed} 丢失&nbsp;&nbsp;${trapHits} 被炸<br>`+
-    (combosFound.size>0?`组合解锁 ${combosFound.size}/3`:'无组合')+
-    (streak>=3?`&nbsp;&nbsp;最长连击 ${streak}`:'');
 
-  // Always show next level (infinite)
+  const parts=[];
+  if(missed>0) parts.push(`${missed} 丢失`);
+  if(trapHits>0) parts.push(`${trapHits} 被炸`);
+  if(streak>=3) parts.push(`连击 ×${streak}`);
+  if(combosFound.size>0) parts.push(`组合 ${combosFound.size}/3`);
+  document.getElementById('e-score').textContent=parts.join(' · ') || '完美通过';
+
   document.getElementById('e-next').style.display='';
-  document.getElementById('e-retry').textContent='再来一次';
-  document.getElementById('e-retry').setAttribute('onpointerdown','startGame()');
   document.getElementById('end-ov').classList.remove('gone');
 }
 
 function nextLevel(){ currentLevel++; startGame(); }
+function showLeaderboard(){ document.getElementById('lb-ov').classList.remove('gone'); }
+function hideLeaderboard(){ document.getElementById('lb-ov').classList.add('gone'); }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DRAW
