@@ -1611,6 +1611,11 @@ function switchLbTab(tab){
   loadLB();
 }
 
+function openProfile(telegramId){
+  if(!aigram.isInAigram) return;
+  try{ window.parent.postMessage(`AW.PROFILE.OPEN-${btoa(JSON.stringify({id:telegramId}))}`, aigram.apiOrigin); }catch(_){}
+}
+
 function renderLBRows(entries){
   if(!entries.length){
     document.getElementById('lb-status').textContent=t('lb.empty');
@@ -1626,7 +1631,8 @@ function renderLBRows(entries){
     const av=e.avatar_url
       ?`<img src="${e.avatar_url}" alt="" onerror="this.style.display='none'">${init}`
       :init;
-    return `<div class="lb-row${isMe?' lb-me':''}">
+    const clickable=aigram.isInAigram?`style="cursor:pointer" onpointerdown="openProfile('${e.telegram_id}')"` :'';
+    return `<div class="lb-row${isMe?' lb-me':''}" ${clickable}>
       <div class="lb-rank">${rank}</div>
       <div class="lb-av">${av}</div>
       <div class="lb-name">${e.name||'—'}</div>
