@@ -30,6 +30,10 @@ body{border-radius:24px;overflow:hidden}
   color:rgba(20,12,5,.30);border:none;background:transparent;
   padding:12px 36px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent;
   margin-top:4px}
+#s-rank-btn{display:block;margin:14px auto 0;width:38px;height:38px;border-radius:50%;border:none;
+  background:rgba(20,12,5,.07);font-size:18px;cursor:pointer;
+  touch-action:none;outline:none;-webkit-tap-highlight-color:transparent;}
+#s-rank-btn:active{background:rgba(20,12,5,.14);transform:scale(.9)}
 
 #score{position:fixed;top:0;left:0;right:0;z-index:15;display:flex;align-items:center;
   padding:13px 16px 18px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
@@ -81,7 +85,7 @@ body{border-radius:24px;overflow:hidden}
     <div class="ov-body" id="s-body"></div>
     <div class="ov-rule"></div>
     <button class="btn-main" id="s-begin" onpointerdown="startGame()"></button>
-    <button class="btn-ghost" id="s-rank-btn" onpointerdown="showLeaderboard()"></button>
+    <button id="s-rank-btn" onpointerdown="showLeaderboard()">🏆</button>
   </div>
 </div>
 
@@ -136,7 +140,6 @@ const I18N={
     'start.label':  '// SIGNAL · semantic signal',
     'start.body':   'swipe to find concept words\navoid traps · time runs out',
     'start.begin':  'S T A R T',
-    'start.rank':   'R A N K I N G',
     'end.next':     'N E X T  →',
     'end.retry':    'R E T R Y',
     'lb.label':     '// RANK · leaderboard',
@@ -160,7 +163,6 @@ const I18N={
     'start.label':  '// SIGNAL · 语义信号',
     'start.body':   '扫动手指 · 寻找概念词\n避开干扰 · 时间耗尽结算',
     'start.begin':  '开 始 扫 描',
-    'start.rank':   '排 行 榜',
     'end.next':     '下 一 关 →',
     'end.retry':    '再 来 一 次',
     'lb.label':     '// RANK · 排行榜',
@@ -186,7 +188,6 @@ function renderI18n(){
   document.getElementById('s-label').textContent      = t('start.label');
   document.getElementById('s-body').innerHTML         = t('start.body').replace('\n','<br>');
   document.getElementById('s-begin').textContent      = t('start.begin');
-  document.getElementById('s-rank-btn').textContent   = t('start.rank');
   document.getElementById('e-next').textContent       = t('end.next');
   document.getElementById('e-retry').textContent      = t('end.retry');
   document.getElementById('lb-label').textContent     = t('lb.label');
