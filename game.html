@@ -24,12 +24,21 @@ body{border-radius:24px;overflow:hidden}
   color:rgba(80,130,0,.7);border:1px solid rgba(80,130,0,.28);background:transparent;
   padding:14px 32px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent}
 
-/* Non-blocking toast — slides up, never pauses game */
-#toast{position:fixed;bottom:22px;left:14px;right:14px;z-index:15;
+/* Score bar — top */
+#score{position:fixed;top:0;left:0;right:0;z-index:15;display:flex;align-items:center;
+  padding:13px 16px 16px;font-family:'Courier New',monospace;font-size:10px;letter-spacing:3px;
+  pointer-events:none;
+  background:linear-gradient(to bottom,#f5f0e6 55%,rgba(245,240,230,0))}
+#sc-name{flex:1;color:rgba(40,30,15,.28)}
+#sc-found{color:rgba(40,30,15,.55);margin-right:14px}
+#sc-missed{color:rgba(160,30,30,.6);min-width:28px;text-align:right}
+
+/* Toast — slides down from top */
+#toast{position:fixed;top:52px;left:14px;right:14px;z-index:15;
   background:rgba(245,240,228,0.97);border:1px solid rgba(40,30,15,.10);
   border-radius:10px;padding:13px 15px 14px;pointer-events:none;
   box-shadow:0 2px 12px rgba(40,30,15,.08);
-  opacity:0;transform:translateY(10px);
+  opacity:0;transform:translateY(-10px);
   transition:opacity .25s,transform .25s}
 #toast.show{opacity:1;transform:translateY(0)}
 #t-tag{font-size:9px;letter-spacing:4px;color:rgba(40,30,15,.30);
@@ -49,6 +58,12 @@ body{border-radius:24px;overflow:hidden}
 </head>
 <body>
 <canvas id="c"></canvas>
+
+<div id="score">
+  <span id="sc-name">SIGNAL</span>
+  <span id="sc-found">0 / 8</span>
+  <span id="sc-missed"></span>
+</div>
 
 <div id="start" class="ov">
   <div id="s-title">SIGNAL</div>
@@ -134,42 +149,38 @@ const GOLD = [
     brief:'意义不在词里，在词与词的关系里。' },
 ];
 const COMBOS = [
-  { group:0, title:'有限的记忆',
-    brief:'有多少上下文就有多少记忆——边界一到，记忆消失。' },
-  { group:1, title:'从混沌到信号',
-    brief:'训练的本质：在万亿次失败里，学会什么值得注意。' },
-  { group:2, title:'涌现的心智',
-    brief:'没有人设计过"理解"——但足够多的连接让它出现了。' },
+  { group:0, title:'有限的记忆',    brief:'有多少上下文就有多少记忆——边界一到，记忆消失。' },
+  { group:1, title:'从混沌到信号',  brief:'训练的本质：在万亿次失败里，学会什么值得注意。' },
+  { group:2, title:'涌现的心智',    brief:'没有人设计过"理解"——但足够多的连接让它出现了。' },
 ];
 
-// ─── LAYOUT CONSTANTS ─────────────────────────────
-const FS      = 15;
-const LSPACE  = 44;   // more airy line spacing
-const MARGIN  = 28;
-const TOP     = 80;   // start further down so first words aren't at top edge
-
-// ─── PHYSICS ──────────────────────────────────────
-const SPRING  = 0.038;
-const DAMP    = 0.87;
-const REPEL_R = 90;
-const REPEL_F = 5.5;
+// ─── CONSTANTS ────────────────────────────────────
+const FS          = 15;
+const LSPACE      = 44;
+const MARGIN      = 28;
+const TOP         = 70;          // first line Y in layout space
+const SCROLL_NORM = 32;          // px/s downward (no finger)
+const SCROLL_SLOW = 5;           // px/s when finger on screen
+const SPRING      = 0.038;
+const DAMP        = 0.87;
+const REPEL_R     = 90;
+const REPEL_F     = 5.5;
+const INK         = [35, 25, 12]; // base ink color for all words
 
 // ─── STATE ────────────────────────────────────────
-let words      = [];
-let phase      = 'idle';
-let scrollY    = 0;
-let scrollVel  = 0;          // px/s, current scroll speed
-const SCROLL_NORM = 10;      // normal scroll speed (px/s)
-const SCROLL_SLOW = 2;       // speed when finger on screen
-let found      = new Set();
-let missed     = 0;
+let words       = [];
+let phase       = 'idle';
+let scrollY     = 0;   // grows → words move down
+let scrollVel   = 0;
+let found       = new Set();
+let missed      = 0;
 let combosFound = new Set();
-let toastQueue = [];
-let toastTimer = null;
-let bursts     = [];
-let missedFx   = [];
-let pointers   = {};
-let pulseT     = 0;
+let toastQueue  = [];
+let toastTimer  = null;
+let bursts      = [];
+let missedFx    = [];
+let pointers    = {};
+let pulseT      = 0;
 
 // ─── LAYOUT ───────────────────────────────────────
 function layout(){
@@ -210,21 +221,10 @@ function repositionHomes(){
   }
 }
 
-function maxScrollY(){
-  if(!words.length) return 0;
-  const maxHy = Math.max(...words.map(w=>w.hy));
-  return Math.max(0, maxHy - H + 120);
-}
-
-// ─── GOLD VISIBILITY ──────────────────────────────
-function goldVisibility(w){
-  let clearance=0, count=0;
-  for(const ow of words){
-    if(ow===w) continue;
-    const d = Math.hypot(ow.x - w.hx, ow.y - w.hy);
-    if(d < 80){ clearance += d/80; count++; }
-  }
-  return count===0 ? 1 : Math.min(1, clearance/count);
+// ─── SCORE DOM ────────────────────────────────────
+function updateScore(){
+  document.getElementById('sc-found').textContent = `${found.size} / ${GOLD.length}`;
+  document.getElementById('sc-missed').textContent = missed > 0 ? `✗ ${missed}` : '';
 }
 
 // ─── UPDATE ───────────────────────────────────────
@@ -233,19 +233,18 @@ function update(dt){
   pulseT += dt * 0.018;
   const sec = dt * 16.67 / 1000;
 
-  // Scroll
+  // Scroll downward — finger on screen slows it
   const hasFingers = Object.keys(pointers).length > 0;
   const targetVel  = hasFingers ? SCROLL_SLOW : SCROLL_NORM;
   scrollVel += (targetVel - scrollVel) * 0.05;
   scrollY   += scrollVel * sec;
-  scrollY    = Math.min(scrollY, maxScrollY());
 
   const pts = Object.values(pointers);
 
   for(const w of words){
-    // Only run physics for words near viewport (layout space)
-    const screenY = w.hy - scrollY;
-    if(screenY < -150 || screenY > H + 150){
+    // screenY = w.hy + scrollY; cull out-of-viewport words
+    const approxSy = w.hy + scrollY;
+    if(approxSy < -150 || approxSy > H + 150){
       w.x = w.hx; w.y = w.hy; w.vx = 0; w.vy = 0;
       continue;
     }
@@ -254,14 +253,14 @@ function update(dt){
     w.vx += Math.sin(pulseT * w.waveFreq + w.waveOff) * 0.032;
     w.vy += Math.cos(pulseT * w.waveFreq * 0.8 + w.waveOff * 1.2) * 0.032;
 
-    // Spring to home (layout space)
+    // Spring to home
     w.vx += (w.hx - w.x) * SPRING;
     w.vy += (w.hy - w.y) * SPRING;
 
-    // Finger repulsion — pointer coords converted to layout space
+    // Finger repulsion — convert screen Y to layout Y via (p.y - scrollY)
     for(const p of pts){
       const dx = w.x - p.x;
-      const dy = w.y - (p.y + scrollY);  // layout space
+      const dy = w.y - (p.y - scrollY);
       const d  = Math.sqrt(dx*dx + dy*dy);
       if(d < REPEL_R && d > 0.5){
         const f = (1 - d/REPEL_R) * REPEL_F;
@@ -274,44 +273,40 @@ function update(dt){
 
     // Gold word logic
     if(w.goldIndex >= 0 && !found.has(w.goldIndex) && !w.goldMissed){
-      // Missed: scrolled off top
-      if(w.hy - scrollY < -80){
+      // Missed: scrolled off bottom
+      if(w.hy + scrollY > H + 80){
         w.goldMissed = true;
         missed++;
         missedFx.push({ x: w.x, t: 1.5, label: GOLD[w.goldIndex].text.toUpperCase() });
+        updateScore();
         checkEnd();
         continue;
       }
 
-      // Visibility
-      const vis = goldVisibility(w);
+      // Reveal ONLY via finger proximity — no passive color change
       let fingerBonus = 0;
       for(const p of pts){
-        const d = Math.hypot(p.x - w.hx, p.y + scrollY - w.hy);
-        if(d < 120) fingerBonus = Math.max(fingerBonus, (1-d/120)*0.28);
+        const d = Math.hypot(p.x - w.hx, (p.y - scrollY) - w.hy);
+        if(d < 110) fingerBonus = Math.max(fingerBonus, 1 - d/110);
       }
-      const fingerActive = fingerBonus > 0.02;
-      const cap    = fingerActive ? 1.0 : 0.28;
-      const target = Math.min(cap, Math.max(0.06, vis*0.9 + fingerBonus));
-      w.goldAlpha += (target - w.goldAlpha) * 0.07;
+      w.goldAlpha += (fingerBonus - w.goldAlpha) * 0.10;
 
       if(w.goldAlpha > 0.55){
         w.revealTimer += sec;
         if(w.revealTimer >= 1.0) collectWord(w);
       } else {
-        w.revealTimer = Math.max(0, w.revealTimer - sec * 1.2);
+        w.revealTimer = Math.max(0, w.revealTimer - sec * 1.5);
       }
     }
   }
 
   // Decay effects
-  for(const b of bursts)  b.t = Math.max(0, b.t - sec * 1.8);
+  for(const b of bursts)   b.t = Math.max(0, b.t - sec * 1.8);
   for(const e of missedFx) e.t = Math.max(0, e.t - sec * 0.9);
   bursts   = bursts.filter(b => b.t > 0);
   missedFx = missedFx.filter(e => e.t > 0);
 
-  // Auto-end when scroll reaches end
-  if(scrollY >= maxScrollY() && found.size + missed === GOLD.length) checkEnd();
+  if(found.size + missed === GOLD.length) checkEnd();
 }
 
 // ─── COLLECT ──────────────────────────────────────
@@ -320,14 +315,12 @@ function collectWord(w){
   if(found.has(gi)) return;
   found.add(gi);
   const g = GOLD[gi];
+  updateScore();
 
-  // Canvas burst
-  bursts.push({ x: w.x, screenY: w.y - scrollY, t: 1.0, rgb: g.rgb });
+  bursts.push({ x: w.x, screenY: w.y + scrollY, t: 1.0, rgb: g.rgb });
+  queueToast({ tag:'// 发现', word: g.text.toUpperCase(), color: g.rgb,
+               brief: `${g.cn}  —  ${g.brief}`, dur: 4000 });
 
-  // Toast
-  queueToast({ tag:'// 发现', word: g.text.toUpperCase(), color: g.rgb, brief: `${g.cn}  —  ${g.brief}`, dur: 4000 });
-
-  // Combo check
   const groupIdxs = GOLD.reduce((a,_,i) => GOLD[i].group===g.group?[...a,i]:a, []);
   if(groupIdxs.every(i => found.has(i)) && !combosFound.has(g.group)){
     combosFound.add(g.group);
@@ -339,13 +332,14 @@ function collectWord(w){
 }
 
 function checkEnd(){
-  if(found.size + missed === GOLD.length || scrollY >= maxScrollY()){
-    setTimeout(showEnd, 1800);
+  if(phase === 'ending') return;
+  if(found.size + missed === GOLD.length){
     phase = 'ending';
+    setTimeout(showEnd, 1800);
   }
 }
 
-// ─── TOAST (non-blocking) ─────────────────────────
+// ─── TOAST ────────────────────────────────────────
 function queueToast(data){
   toastQueue.push(data);
   if(!toastTimer) showNextToast();
@@ -373,7 +367,7 @@ function showEnd(){
   const stars = total >= 7 ? 3 : total >= 5 ? 2 : total >= 3 ? 1 : 0;
   document.getElementById('e-title').textContent =
     total === GOLD.length ? 'COMPLETE' : total >= 5 ? 'PARTIAL' : 'SIGNAL LOST';
-  const rc = ['rgba(75,135,0,.75)','rgba(0,130,175,.75)','rgba(200,85,0,.75)'];
+  const rc = ['rgba(75,135,0,.85)','rgba(0,130,175,.85)','rgba(200,85,0,.85)'];
   document.getElementById('e-rows').innerHTML = GOLD.map((g,i)=>{
     const st = found.has(i) ? '✓' : (words.find(w=>w.goldIndex===i)?.goldMissed ? '✗' : '·');
     return `<span style="color:${rc[g.group]}">${g.text}</span>&nbsp; ${st}`;
@@ -392,109 +386,93 @@ function draw(){
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
   for(const w of words){
-    const sy = w.y - scrollY;  // screen Y
+    const sy = w.y + scrollY;   // screen Y: grows as scrollY grows (words flow down)
     if(sy < -40 || sy > H + 40) continue;
 
-    const isGold      = w.goldIndex >= 0;
-    const isFound     = isGold && found.has(w.goldIndex);
-    const isMissed    = isGold && w.goldMissed;
-    const isActive    = isGold && !isFound && !isMissed;
+    const isGold   = w.goldIndex >= 0;
+    const isFound  = isGold && found.has(w.goldIndex);
+    const isMissed = isGold && w.goldMissed;
+    const isActive = isGold && !isFound && !isMissed;
 
     if(isFound){
+      // Collected — show full gold color
       const [r,g,b] = GOLD[w.goldIndex].rgb;
-      ctx.fillStyle = `rgba(${r},${g},${b},0.42)`;
+      ctx.fillStyle = `rgba(${r},${g},${b},0.82)`;
       ctx.fillText(w.text, w.x, sy); continue;
     }
     if(isMissed){
-      ctx.fillStyle = 'rgba(160,30,30,0.28)';
+      // Missed — fade out
+      ctx.fillStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},0.18)`;
       ctx.fillText(w.text, w.x, sy); continue;
     }
     if(isActive){
-      const g = GOLD[w.goldIndex];
-      const [r,gg,b] = g.rgb;
-      const a   = w.goldAlpha;
-      const pulse = Math.sin(pulseT*(a>0.5?6:3))*0.45+0.55;
-      const isReady = a > 0.55;
+      const [gr,gg,gb] = GOLD[w.goldIndex].rgb;
+      const a = w.goldAlpha;
 
-      if(isReady){
-        ctx.shadowColor = `rgba(${r},${gg},${b},0.55)`;
-        ctx.shadowBlur  = 10 + pulse*5;
-        ctx.fillStyle   = `rgba(${r},${gg},${b},${(0.7+pulse*0.25).toFixed(2)})`;
+      // Blend from solid ink toward gold as finger approaches
+      const dr = Math.round(INK[0] + (gr - INK[0]) * a);
+      const dg = Math.round(INK[1] + (gg - INK[1]) * a);
+      const db = Math.round(INK[2] + (gb - INK[2]) * a);
+
+      if(a > 0.55){
+        // Collecting — subtle glow + progress ring
+        const pulse = Math.sin(pulseT * 6) * 0.12 + 0.88;
+        ctx.shadowColor = `rgba(${gr},${gg},${gb},0.30)`;
+        ctx.shadowBlur  = 8 + pulse * 4;
+        ctx.fillStyle   = `rgba(${dr},${dg},${db},0.90)`;
         ctx.fillText(w.text, w.x, sy);
         ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
 
-        // Progress arc
         const prog = Math.min(1, w.revealTimer / 1.0);
         if(prog > 0){
           ctx.beginPath();
-          ctx.arc(w.x, sy, w.tw/2+9, -Math.PI/2, -Math.PI/2 + prog*Math.PI*2);
-          ctx.strokeStyle = `rgba(${r},${gg},${b},0.65)`; ctx.lineWidth = 2; ctx.stroke();
+          ctx.arc(w.x, sy, w.tw/2+8, -Math.PI/2, -Math.PI/2 + prog*Math.PI*2);
+          ctx.strokeStyle = `rgba(${gr},${gg},${gb},0.50)`;
+          ctx.lineWidth = 1.5; ctx.stroke();
         }
       } else {
-        ctx.fillStyle = `rgba(${r},${gg},${b},${Math.max(0.06, a*0.8).toFixed(2)})`;
+        ctx.fillStyle = `rgba(${dr},${dg},${db},0.72)`;
         ctx.fillText(w.text, w.x, sy);
-        if(a > 0.12){
-          ctx.strokeStyle = `rgba(${r},${gg},${b},${(a*0.3).toFixed(2)})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.moveTo(w.x-w.tw/2,sy+9); ctx.lineTo(w.x+w.tw/2,sy+9); ctx.stroke();
-        }
       }
 
-      // Danger warning when about to scroll off top
-      if(sy < 70 && sy > -40){
-        const danger = Math.max(0, 1 - sy/70);
-        ctx.fillStyle = `rgba(${r},${gg},${b},${(danger*0.5).toFixed(2)})`;
-        ctx.fillRect(0, 0, W * danger, 3);
+      // Danger bar at bottom edge when about to scroll off
+      if(sy > H - 70 && sy < H + 40){
+        const danger = (sy - (H - 70)) / 70;
+        ctx.fillStyle = `rgba(${gr},${gg},${gb},${(danger * 0.40).toFixed(2)})`;
+        ctx.fillRect(0, H - 3, W * danger, 3);
       }
       continue;
     }
 
-    // Regular word
-    const disp  = Math.hypot(w.x - w.hx, w.y - w.hy);
-    const speed = Math.hypot(w.vx, w.vy);
-    const e     = Math.min(1, disp/55 + speed*0.1);
-    const ba = 0.13 + e * 0.40;
-    const r  = Math.round(35 + e * 55);
-    const g  = Math.round(25 + e * 30);
-    const b  = Math.round(12 + e * 5);
-    ctx.fillStyle = `rgba(${r},${g},${b},${ba.toFixed(2)})`;
+    // Regular word — solid ink, uniform, no variation
+    ctx.fillStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},0.70)`;
     ctx.fillText(w.text, w.x, sy);
   }
 
-  // Burst effects
+  // Burst rings on collect
   for(const b of bursts){
     const [r,g,bb] = b.rgb;
-    const radius = (1-b.t)*55;
+    const radius = (1-b.t) * 55;
     ctx.beginPath(); ctx.arc(b.x, b.screenY, radius, 0, Math.PI*2);
-    ctx.strokeStyle = `rgba(${r},${g},${bb},${(b.t*0.7).toFixed(2)})`;
-    ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.strokeStyle = `rgba(${r},${g},${bb},${(b.t*0.55).toFixed(2)})`;
+    ctx.lineWidth = 2; ctx.stroke();
   }
 
-  // Missed effects
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  // Missed labels — show at bottom
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
   ctx.font = '9px "Courier New",monospace';
   for(const e of missedFx){
-    ctx.fillStyle = `rgba(160,30,30,${(e.t*0.65).toFixed(2)})`;
-    ctx.fillText(`↑ ${e.label}`, Math.max(8, Math.min(W-80, e.x-20)), 8);
+    ctx.fillStyle = `rgba(160,30,30,${(e.t*0.60).toFixed(2)})`;
+    ctx.fillText(`↓ ${e.label}`, Math.max(8, Math.min(W-80, e.x-20)), H - 10);
   }
 
-  // Canvas gradient fade — top and bottom
+  // Gradient fade — top (under score bar) and bottom
   const tg = ctx.createLinearGradient(0,0,0,90);
   tg.addColorStop(0,'#f5f0e6'); tg.addColorStop(1,'rgba(245,240,230,0)');
   ctx.fillStyle = tg; ctx.fillRect(0,0,W,90);
   const bg = ctx.createLinearGradient(0,H-80,0,H);
   bg.addColorStop(0,'rgba(245,240,230,0)'); bg.addColorStop(1,'#f5f0e6');
   ctx.fillStyle = bg; ctx.fillRect(0,H-80,W,80);
-
-  // HUD
-  ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-  ctx.font = '10px "Courier New",monospace';
-  ctx.fillStyle = 'rgba(40,30,15,.28)';
-  ctx.fillText(`${found.size} / ${GOLD.length}`, W-16, 16);
-  if(missed > 0){
-    ctx.fillStyle = 'rgba(160,30,30,.45)';
-    ctx.fillText(`${missed} ✗`, W-16, 32);
-  }
 }
 
 // ─── INPUT ────────────────────────────────────────
@@ -512,13 +490,14 @@ function startGame(){
   if(toastTimer){ clearTimeout(toastTimer); toastTimer=null; }
   toastQueue=[]; bursts=[]; missedFx=[];
   found=new Set(); combosFound=new Set(); missed=0;
-  scrollY=0; scrollVel=0; pulseT=0; phase='idle';
+  scrollY=-TOP; scrollVel=0; pulseT=0; phase='idle';
+  updateScore();
 
   if(!words.length){ resize(); layout(); }
   else {
     for(const w of words){
-      w.vx=0;w.vy=0;w.x=w.hx;w.y=w.hy;
-      w.goldAlpha=0;w.revealTimer=0;w.goldMissed=false;
+      w.vx=0; w.vy=0; w.x=w.hx; w.y=w.hy;
+      w.goldAlpha=0; w.revealTimer=0; w.goldMissed=false;
     }
   }
   phase = 'explore';
