@@ -6,43 +6,44 @@
 <title>SIGNAL</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#07070e}
+html,body{width:100%;height:100%;overflow:hidden;background:#f5f0e6}
 body{border-radius:24px;overflow:hidden}
 #c{position:fixed;inset:0;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent}
 
 .ov{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;background:#07070e;transition:opacity .4s}
+    justify-content:center;background:#f5f0e6;transition:opacity .4s}
 .ov.gone{opacity:0;pointer-events:none}
-#s-title{font-size:clamp(18px,5vw,28px);letter-spacing:10px;color:rgba(255,255,255,.68);
+#s-title{font-size:clamp(18px,5vw,28px);letter-spacing:10px;color:rgba(35,25,10,.72);
   margin-bottom:8px;font-family:'Courier New',monospace;font-weight:400}
-#s-sub{font-size:10px;color:rgba(200,255,80,.28);letter-spacing:4px;margin-bottom:32px;
+#s-sub{font-size:10px;color:rgba(80,130,0,.5);letter-spacing:4px;margin-bottom:32px;
   font-family:'Courier New',monospace}
-#s-body{font-size:13px;color:rgba(180,180,210,.38);line-height:2.5;text-align:center;
+#s-body{font-size:13px;color:rgba(50,40,20,.45);line-height:2.5;text-align:center;
   margin-bottom:40px;max-width:270px;font-family:-apple-system,sans-serif}
-#s-body b{color:rgba(200,255,80,.6);font-weight:400}
+#s-body b{color:rgba(80,130,0,.75);font-weight:400}
 .btn{font-family:'Courier New',monospace;font-size:11px;letter-spacing:5px;
-  color:rgba(200,255,80,.6);border:1px solid rgba(200,255,80,.18);background:transparent;
+  color:rgba(80,130,0,.7);border:1px solid rgba(80,130,0,.28);background:transparent;
   padding:14px 32px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent}
 
 /* Non-blocking toast — slides up, never pauses game */
 #toast{position:fixed;bottom:22px;left:14px;right:14px;z-index:15;
-  background:rgba(8,8,18,0.95);border:1px solid rgba(255,255,255,.06);
+  background:rgba(245,240,228,0.97);border:1px solid rgba(40,30,15,.10);
   border-radius:10px;padding:13px 15px 14px;pointer-events:none;
+  box-shadow:0 2px 12px rgba(40,30,15,.08);
   opacity:0;transform:translateY(10px);
   transition:opacity .25s,transform .25s}
 #toast.show{opacity:1;transform:translateY(0)}
-#t-tag{font-size:9px;letter-spacing:4px;color:rgba(255,255,255,.18);
+#t-tag{font-size:9px;letter-spacing:4px;color:rgba(40,30,15,.30);
   font-family:'Courier New',monospace;margin-bottom:5px}
 #t-word{font-size:15px;letter-spacing:4px;font-family:'Courier New',monospace;margin-bottom:4px}
-#t-brief{font-size:12px;color:rgba(190,190,210,.48);line-height:1.7;
+#t-brief{font-size:12px;color:rgba(40,30,15,.55);line-height:1.7;
   font-family:-apple-system,sans-serif}
 
-#e-title{font-size:clamp(22px,5vw,32px);letter-spacing:7px;color:rgba(200,255,80,.85);
+#e-title{font-size:clamp(22px,5vw,32px);letter-spacing:7px;color:rgba(35,25,10,.78);
   margin-bottom:6px;font-family:'Courier New',monospace}
-#e-rows{font-size:11px;color:rgba(180,180,200,.48);letter-spacing:2px;line-height:2.6;
+#e-rows{font-size:11px;color:rgba(40,30,15,.45);letter-spacing:2px;line-height:2.6;
   margin:16px 0 4px;font-family:'Courier New',monospace;text-align:center}
-#e-rule{width:36px;height:1px;background:rgba(255,255,255,.08);margin:14px auto}
-#e-score{font-size:12px;color:rgba(180,180,200,.38);margin-bottom:28px;
+#e-rule{width:36px;height:1px;background:rgba(40,30,15,.12);margin:14px auto}
+#e-score{font-size:12px;color:rgba(40,30,15,.40);margin-bottom:28px;
   font-family:-apple-system,sans-serif;text-align:center;line-height:1.9}
 </style>
 </head>
@@ -115,21 +116,21 @@ const PASSAGE =
 
 // ─── GOLD WORDS ───────────────────────────────────
 const GOLD = [
-  { text:'memory',    group:0, rgb:[200,255,80],  cn:'记忆',
+  { text:'memory',    group:0, rgb:[75,135,0],   cn:'记忆',
     brief:'AI 没有持久记忆——它"记得"只因那些词还在上下文里。' },
-  { text:'context',   group:0, rgb:[200,255,80],  cn:'上下文',
+  { text:'context',   group:0, rgb:[75,135,0],   cn:'上下文',
     brief:'记忆的边界就是意义的边界。超出窗口的，永远消失。' },
-  { text:'signal',    group:1, rgb:[80,220,255],  cn:'信号',
+  { text:'signal',    group:1, rgb:[0,130,175],  cn:'信号',
     brief:'词的含义由邻居定义。出现在"noise"旁边，就意味着信号。' },
-  { text:'patterns',  group:1, rgb:[80,220,255],  cn:'模式',
+  { text:'patterns',  group:1, rgb:[0,130,175],  cn:'模式',
     brief:'在真正"懂"任何事之前，模型已学会了万亿个模式。' },
-  { text:'noise',     group:1, rgb:[80,220,255],  cn:'噪声',
+  { text:'noise',     group:1, rgb:[0,130,175],  cn:'噪声',
     brief:'见过无数的"不对"，才知道什么是"对"。' },
-  { text:'thought',   group:2, rgb:[255,160,80],  cn:'思考',
+  { text:'thought',   group:2, rgb:[200,85,0],   cn:'思考',
     brief:'没有一个神经元在思考——但思考发生了。' },
-  { text:'intention', group:2, rgb:[255,160,80],  cn:'意图',
+  { text:'intention', group:2, rgb:[200,85,0],   cn:'意图',
     brief:'你的表述方式，是你意图的唯一证据。' },
-  { text:'meaning',   group:2, rgb:[255,160,80],  cn:'意义',
+  { text:'meaning',   group:2, rgb:[200,85,0],   cn:'意义',
     brief:'意义不在词里，在词与词的关系里。' },
 ];
 const COMBOS = [
@@ -372,7 +373,7 @@ function showEnd(){
   const stars = total >= 7 ? 3 : total >= 5 ? 2 : total >= 3 ? 1 : 0;
   document.getElementById('e-title').textContent =
     total === GOLD.length ? 'COMPLETE' : total >= 5 ? 'PARTIAL' : 'SIGNAL LOST';
-  const rc = ['rgba(200,255,80,.7)','rgba(80,220,255,.7)','rgba(255,160,80,.7)'];
+  const rc = ['rgba(75,135,0,.75)','rgba(0,130,175,.75)','rgba(200,85,0,.75)'];
   document.getElementById('e-rows').innerHTML = GOLD.map((g,i)=>{
     const st = found.has(i) ? '✓' : (words.find(w=>w.goldIndex===i)?.goldMissed ? '✗' : '·');
     return `<span style="color:${rc[g.group]}">${g.text}</span>&nbsp; ${st}`;
@@ -385,7 +386,7 @@ function showEnd(){
 
 // ─── DRAW ─────────────────────────────────────────
 function draw(){
-  ctx.fillStyle = '#07070e'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#f5f0e6'; ctx.fillRect(0,0,W,H);
 
   ctx.font = `${FS}px 'Courier New',monospace`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -401,11 +402,11 @@ function draw(){
 
     if(isFound){
       const [r,g,b] = GOLD[w.goldIndex].rgb;
-      ctx.fillStyle = `rgba(${r},${g},${b},0.18)`;
+      ctx.fillStyle = `rgba(${r},${g},${b},0.42)`;
       ctx.fillText(w.text, w.x, sy); continue;
     }
     if(isMissed){
-      ctx.fillStyle = 'rgba(255,80,80,0.12)';
+      ctx.fillStyle = 'rgba(160,30,30,0.28)';
       ctx.fillText(w.text, w.x, sy); continue;
     }
     if(isActive){
@@ -452,8 +453,10 @@ function draw(){
     const disp  = Math.hypot(w.x - w.hx, w.y - w.hy);
     const speed = Math.hypot(w.vx, w.vy);
     const e     = Math.min(1, disp/55 + speed*0.1);
-    let ba = 0.20 + e * 0.42, r=235, g=235, b=255;
-    if(e>0.25){ r=Math.round(235+(200-235)*e); g=Math.round(235+(255-235)*e); b=Math.round(255+(80-255)*e); }
+    const ba = 0.13 + e * 0.40;
+    const r  = Math.round(35 + e * 55);
+    const g  = Math.round(25 + e * 30);
+    const b  = Math.round(12 + e * 5);
     ctx.fillStyle = `rgba(${r},${g},${b},${ba.toFixed(2)})`;
     ctx.fillText(w.text, w.x, sy);
   }
@@ -471,25 +474,25 @@ function draw(){
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.font = '9px "Courier New",monospace';
   for(const e of missedFx){
-    ctx.fillStyle = `rgba(255,80,80,${(e.t*0.6).toFixed(2)})`;
+    ctx.fillStyle = `rgba(160,30,30,${(e.t*0.65).toFixed(2)})`;
     ctx.fillText(`↑ ${e.label}`, Math.max(8, Math.min(W-80, e.x-20)), 8);
   }
 
   // Canvas gradient fade — top and bottom
   const tg = ctx.createLinearGradient(0,0,0,90);
-  tg.addColorStop(0,'#07070e'); tg.addColorStop(1,'rgba(7,7,14,0)');
+  tg.addColorStop(0,'#f5f0e6'); tg.addColorStop(1,'rgba(245,240,230,0)');
   ctx.fillStyle = tg; ctx.fillRect(0,0,W,90);
   const bg = ctx.createLinearGradient(0,H-80,0,H);
-  bg.addColorStop(0,'rgba(7,7,14,0)'); bg.addColorStop(1,'#07070e');
+  bg.addColorStop(0,'rgba(245,240,230,0)'); bg.addColorStop(1,'#f5f0e6');
   ctx.fillStyle = bg; ctx.fillRect(0,H-80,W,80);
 
   // HUD
   ctx.textAlign = 'right'; ctx.textBaseline = 'top';
   ctx.font = '10px "Courier New",monospace';
-  ctx.fillStyle = 'rgba(160,160,185,.28)';
+  ctx.fillStyle = 'rgba(40,30,15,.28)';
   ctx.fillText(`${found.size} / ${GOLD.length}`, W-16, 16);
   if(missed > 0){
-    ctx.fillStyle = 'rgba(255,80,80,.4)';
+    ctx.fillStyle = 'rgba(160,30,30,.45)';
     ctx.fillText(`${missed} ✗`, W-16, 32);
   }
 }
