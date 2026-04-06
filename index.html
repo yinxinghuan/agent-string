@@ -1301,7 +1301,9 @@ function showEnd(){
   if(combosFound.size>0) parts.push(t('end.combo',combosFound.size));
   document.getElementById('e-score').textContent=parts.join(' · ')||t('end.perfect');
 
-  document.getElementById('e-next').style.display='';
+  // Only allow advancing if player cleared at least half the core words or completed a lap
+  const passed = lapCount > 0 || pct >= 0.5;
+  document.getElementById('e-next').style.display = passed ? '' : 'none';
   document.getElementById('end-ov').classList.remove('gone');
 }
 
