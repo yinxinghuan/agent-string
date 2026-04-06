@@ -314,7 +314,7 @@ const LEVELS = [
     label:'L1', name:'INIT', desc:'语义之源', en_desc:'semantic origins',
     time:90, fs:17, lspace:46, margin:28, scrollNorm:62, scrollSlow:11,
     layoutMode:'prose', geomCount:1, geomStrength:0.7,
-    surgeSpeed:200, surgeDuration:1.2,
+    surgeSpeed:520, surgeDuration:0.7,
     trapKeys:['static','ghost','ozone'],
     allTrapKeys:['static','ghost','ozone','lightning','rain','gaps'],
 
@@ -401,7 +401,7 @@ const LEVELS = [
     label:'L2', name:'SCAN', desc:'注意力场', en_desc:'attention field',
     time:80, fs:14, lspace:36, margin:22, scrollNorm:90, scrollSlow:15,
     layoutMode:'stream', geomCount:2, geomStrength:0.9,
-    surgeSpeed:280, surgeDuration:1.4,
+    surgeSpeed:680, surgeDuration:0.65,
     trapKeys:['error','noise','corrupt','signal'],
     allTrapKeys:['error','noise','corrupt','signal','layer'],
 
@@ -491,7 +491,7 @@ const LEVELS = [
     label:'L3', name:'DEEP', desc:'涌现之谷', en_desc:'valley of emergence',
     time:70, fs:19, lspace:54, margin:32, scrollNorm:44, scrollSlow:8,
     layoutMode:'verse', geomCount:3, geomStrength:1.1,
-    surgeSpeed:155, surgeDuration:1.6,
+    surgeSpeed:420, surgeDuration:0.75,
     trapKeys:['void','dissolve','fragment','stirs'],
     allTrapKeys:['void','dissolve','fragment','stirs','node','quiet'],
 
@@ -1046,7 +1046,6 @@ function update(dt){
     if(surgeCountdown <= 0 && surgeState === 'idle'){
       surgeState = 'warn';
       surgeTimer = 0.45;
-      // Next surge in interval ± 30%
       surgeCountdown = cfg.surgeInterval * (0.85 + Math.random() * 0.3);
       sfxSurge();
       queueToast({ tag:t('toast.warn'), word:'SURGE', color:[180,40,40],
@@ -1056,10 +1055,11 @@ function update(dt){
       surgeTimer -= sec;
       if(surgeTimer <= 0){ surgeState = 'active'; surgeTimer = cfg.surgeDuration; }
     }
-    if(surgeState === 'active'){
-      surgeTimer -= sec;
-      if(surgeTimer <= 0) surgeState = 'idle';
-    }
+  }
+  // Active timer applies to ALL levels (including word-triggered surges in L1-L3)
+  if(surgeState === 'active'){
+    surgeTimer -= sec;
+    if(surgeTimer <= 0) surgeState = 'idle';
   }
 
   // ── Scroll velocity ────────────────────────────────────────────────────────
