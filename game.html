@@ -148,7 +148,7 @@ const locale=detectLocale();
 const I18N={
   en:{
     'start.label':  '// SIGNAL · semantic signal',
-    'start.body':   'swipe to find concept words\ntwo fingers · boost scroll · time runs out',
+    'start.body':   'swipe to find concept words\navoid traps · time runs out',
     'start.begin':  'S T A R T',
     'end.next':     'N E X T  →',
     'end.retry':    'R E T R Y',
@@ -171,7 +171,7 @@ const I18N={
   },
   zh:{
     'start.label':  '// SIGNAL · 语义信号',
-    'start.body':   '扫动手指 · 寻找概念词\n双指加速 · 避开干扰 · 时间耗尽结算',
+    'start.body':   '扫动手指 · 寻找概念词\n避开干扰 · 时间耗尽结算',
     'start.begin':  '开 始 扫 描',
     'end.next':     '下 一 关 →',
     'end.retry':    '再 来 一 次',
@@ -293,7 +293,7 @@ const LEVELS = [
     label:'L1', name:'INIT', desc:'语义之源', en_desc:'semantic origins',
     time:90, fs:17, lspace:46, margin:28, scrollNorm:62, scrollSlow:11,
     layoutMode:'prose', geomCount:1, geomStrength:0.7,
-    surgeSpeed:200,
+    surgeInterval:22, surgeSpeed:200, surgeDuration:1.1,
     trapKeys:['static','ghost','ozone'],
     allTrapKeys:['static','ghost','ozone','lightning','rain','gaps'],
 
@@ -371,7 +371,7 @@ const LEVELS = [
     label:'L2', name:'SCAN', desc:'注意力场', en_desc:'attention field',
     time:80, fs:14, lspace:36, margin:22, scrollNorm:90, scrollSlow:15,
     layoutMode:'stream', geomCount:2, geomStrength:0.9,
-    surgeSpeed:280,
+    surgeInterval:18, surgeSpeed:280, surgeDuration:1.3,
     trapKeys:['error','noise','corrupt','signal'],
     allTrapKeys:['error','noise','corrupt','signal','layer'],
 
@@ -452,7 +452,7 @@ const LEVELS = [
     label:'L3', name:'DEEP', desc:'涌现之谷', en_desc:'valley of emergence',
     time:70, fs:19, lspace:54, margin:32, scrollNorm:44, scrollSlow:8,
     layoutMode:'verse', geomCount:3, geomStrength:1.1,
-    surgeSpeed:155,
+    surgeInterval:16, surgeSpeed:155, surgeDuration:1.5,
     trapKeys:['void','dissolve','fragment','stirs'],
     allTrapKeys:['void','dissolve','fragment','stirs','node','quiet'],
 
@@ -984,9 +984,7 @@ function update(dt){
   trapFontTimer = Math.max(0, trapFontTimer - sec);
 
   const cfg = lvCFG();
-  const fingerCount = Object.keys(pointers).length;
-  const hasFingers  = fingerCount > 0;
-  const playerBoost = fingerCount >= 2; // 双指主动加速
+  const hasFingers = Object.keys(pointers).length > 0;
 
   // ── Speed surge state machine ──────────────────────────────────────────────
   if(cfg.surgeInterval){
@@ -1012,12 +1010,7 @@ function update(dt){
 
   // ── Scroll velocity ────────────────────────────────────────────────────────
   if(surgeState === 'active'){
-    // Auto-surge (generated levels punishment)
     scrollVel += (cfg.surgeSpeed - scrollVel) * 0.18;
-  } else if(playerBoost){
-    // 双指主动加速 — high risk / high reward
-    const boostSpd = cfg.surgeSpeed || cfg.scrollNorm * 3.5;
-    scrollVel += (boostSpd - scrollVel) * 0.18;
   } else {
     const targetVel = hasFingers ? cfg.scrollSlow : cfg.scrollNorm;
     scrollVel += (targetVel - scrollVel) * 0.05;
