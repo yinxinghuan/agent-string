@@ -51,8 +51,9 @@ body{border-radius:24px;overflow:hidden}
   margin-bottom:6px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
 #e-lv{font-size:10px;letter-spacing:4px;color:rgba(20,12,5,.30);
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:16px}
-#e-rows{font-size:13px;color:rgba(20,12,5,.45);letter-spacing:2px;line-height:2.6;
-  margin:0 0 4px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;text-align:center}
+#e-rows{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;
+  margin:0 0 4px;max-width:320px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+#e-rows span{font-size:13px;letter-spacing:1px;white-space:nowrap}
 #e-rule{width:36px;height:1px;background:rgba(20,12,5,.12);margin:14px auto}
 #e-score{font-size:13px;color:rgba(20,12,5,.40);margin-bottom:24px;
   font-family:-apple-system,sans-serif;text-align:center;line-height:1.9}
@@ -669,8 +670,9 @@ function showEnd(){
   document.getElementById('e-lv').textContent=`${lv.label} · ${lv.name} · ${lv.desc}`;
   document.getElementById('e-rows').innerHTML=gold.map((g,i)=>{
     const st=found.has(i)?'✓':(words.find(w=>w.goldIndex===i)?.goldMissed?'✗':'·');
-    return `<span style="color:rgba(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]},.88)">${g.text}</span>&nbsp;${st}`;
-  }).join('&nbsp;&nbsp;');
+    const dim=st==='·'?',0.30':',.88';
+    return `<span style="color:rgba(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]}${dim})">${g.text}&nbsp;${st}</span>`;
+  }).join('');
   document.getElementById('e-score').innerHTML=
     `${'★'.repeat(stars)+'☆'.repeat(3-stars)}&nbsp;&nbsp;${total}/${gold.length} 词&nbsp;&nbsp;${missed} 丢失&nbsp;&nbsp;${trapHits} 被炸<br>`+
     (combosFound.size>0?`组合解锁 ${combosFound.size}/3`:'无组合');
