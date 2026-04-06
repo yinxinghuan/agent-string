@@ -196,6 +196,7 @@ const I18N={
     'toast.time':   '// time+',
     'toast.penalty':'// penalty',
     'toast.lap':    '// lap',
+    'toast.friend': '// friend',
     'trap.brief':   'signal corrupted — nearby words scattered.',
     'surge.brief':  'signal surging — hold on.',
     'streak.brief': n=>`${n} consecutive concepts, no traps.`,
@@ -226,6 +227,7 @@ const I18N={
     'toast.time':   '// 时间+',
     'toast.penalty':'// 扣分',
     'toast.lap':    '// 圈完成',
+    'toast.friend': '// 好友',
     'trap.brief':   '信号污染——附近的词被打乱了。',
     'surge.brief':  '信号加速——抓紧。',
     'streak.brief': n=>`连续收集 ${n} 个概念词，没有踩到陷阱。`,
@@ -675,8 +677,12 @@ function getLevel(n)  { return n < LEVELS.length ? LEVELS[n] : generateLevel(n);
 function lvCFG()      { return getLevel(currentLevel); }
 function lvFS()       { return lvCFG().fs; }
 function lvLSPACE()   { return lvCFG().lspace; }
-function lvGOLD()     { return lvCFG().gold; }
-// Core gold words (not time/penalty) — required for lap completion
+// Friend injection: override passage + gold for current game session
+let _injectedPassage = null;
+let _injectedGold    = null;
+function lvGOLD()     { return _injectedGold || lvCFG().gold; }
+function lvPASSAGE()  { return _injectedPassage || lvCFG().passage; }
+// Core gold words (not time/penalty/friend) — required for lap completion
 function coreGoldIndices(){ return lvGOLD().map((_,i)=>i).filter(i=>{ const t=lvGOLD()[i].type; return !t||t==='gold'; }); }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -854,8 +860,9 @@ function computePositions(cfg){
 // ─────────────────────────────────────────────────────────────────────────────
 function layout(){
   const cfg      = lvCFG();
-  const positions= computePositions(cfg);
-  const tokens   = flatPassageTokens(cfg.passage);
+  const passage  = lvPASSAGE();
+  const positions= computePositions({...cfg, passage});
+  const tokens   = flatPassageTokens(passage);
   const usedGold = new Set(), usedTrap = new Set();
   words = [];
   for(let i=0; i<tokens.length; i++){
@@ -882,7 +889,7 @@ function layout(){
 
 function repositionHomes(){
   const cfg      = lvCFG();
-  const positions= computePositions(cfg);
+  const positions= computePositions({...cfg, passage:lvPASSAGE()});
   for(let i=0; i<words.length && i<positions.length; i++){
     const { hx, hy, tw } = positions[i];
     words[i].hx=hx; words[i].hy=hy; words[i].ohx=hx; words[i].ohy=hy; words[i].tw=tw;
@@ -1194,6 +1201,18 @@ function collectWord(w){
   const gi=w.goldIndex; if(found.has(gi)) return;
   found.add(gi);
   const g=lvGOLD()[gi];
+
+  // ── Friend word ──────────────────────────────────────────────────────────
+  if(g.type==='friend'){
+    timeLeft+=10; score+=25; streak++;
+    sfxTime();
+    bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
+    bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true });
+    queueToast({ tag:t('toast.friend'), word:g.text.toUpperCase(), color:g.rgb,
+                 brief:locale==='zh'?`好友信号 — ${g.text} 出现了！+10s +25分`:`signal from ${g.text} — +10s  +25 pts`,
+                 dur:4500 });
+    updateScore(); return;
+  }
 
   // ── Time extension word ──────────────────────────────────────────────────
   if(g.type==='time'){
@@ -1515,6 +1534,7 @@ function startGame(){
   surgeState='idle'; surgeTimer=0;
   signalHealth=4; trapFontTimer=0;
   score=0; lapCount=0;
+  buildFriendInjection();
   // First surge delayed — give player time to settle in
   surgeCountdown = (lvCFG().surgeInterval || 99) * (0.6 + Math.random() * 0.4);
   timeLeft=lvCFG().time; phase='idle';
@@ -1571,6 +1591,7 @@ function callAigramAPI(url, method='GET', data=null){
 }
 
 let myId='', myName='', myAvatar='';
+let friendPool=[]; // [{name, telegram_id}] — loaded async, injected at game start
 
 async function loadUserInfo(){
   if(!aigram.isInAigram) return;
@@ -1578,6 +1599,18 @@ async function loadUserInfo(){
   try{
     const r = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/get/info/by/telegram_id?telegram_id=${myId}`);
     if(r?.data){ myName=r.data.name||''; myAvatar=r.data.head_url||''; }
+  }catch(_){}
+}
+
+async function loadFriends(){
+  if(!aigram.isInAigram) return;
+  try{
+    const contacts = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/contact/list?telegram_id=${myId}`);
+    if(!contacts?.length) return;
+    // Sanitize names: first word only, letters/digits/CJK, max 8 chars
+    friendPool = contacts
+      .map(c=>({ name:(c.name||'').split(/\s+/)[0].replace(/[^\w\u4e00-\u9fa5]/g,'').slice(0,8), telegram_id:c.telegram_id }))
+      .filter(f=>f.name.length>=2);
   }catch(_){}
 }
 
@@ -1664,7 +1697,42 @@ function showLeaderboard(){
 }
 function hideLeaderboard(){ document.getElementById('lb-ov').classList.add('gone'); }
 
+// Sentence templates to embed friend names naturally into the passage
+const FRIEND_TEMPLATES = [
+  n=>`the signal carries ${n} across\n`,
+  n=>`through the noise ${n} persists\n`,
+  n=>`${n} reaches through context\n`,
+  n=>`somewhere in the pattern ${n} remains\n`,
+  n=>`the weights remember ${n} now\n`,
+];
+
+function buildFriendInjection(){
+  if(!friendPool.length){ _injectedPassage=null; _injectedGold=null; return; }
+  // Pick 2–3 random friends
+  const picked = [...friendPool].sort(()=>Math.random()-0.5).slice(0,3);
+  const baseGold = lvCFG().gold;
+  const basePassage = lvCFG().passage;
+  // Build extra passage lines
+  const extraLines = '\n\n' + picked.map((f,i)=>
+    FRIEND_TEMPLATES[i % FRIEND_TEMPLATES.length](f.name)
+  ).join('');
+  _injectedPassage = basePassage + extraLines;
+  _injectedGold = [
+    ...baseGold,
+    ...picked.map(f=>({
+      text: f.name,
+      type: 'friend',
+      group: 0,
+      rgb: [210, 130, 10],
+      cn: f.name,
+      brief: `好友信号 — ${f.name} 出现了！`,
+      en_brief: `friend in the signal — ${f.name} detected.`,
+    }))
+  ];
+}
+
 loadUserInfo();
+loadFriends();
 
 renderI18n();
 resize(); layout();
