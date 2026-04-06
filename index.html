@@ -50,7 +50,7 @@ body{border-radius:24px;overflow:hidden}
 #toast.show{opacity:1;transform:translateY(0)}
 #t-tag{font-size:11px;letter-spacing:5px;color:rgba(20,12,5,.35);
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:6px}
-#t-word{font-size:22px;letter-spacing:8px;color:rgba(20,12,5,1);
+#t-word{font-size:22px;letter-spacing:8px;
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:6px}
 #t-brief{font-size:14px;color:rgba(20,12,5,.62);line-height:1.7;font-family:-apple-system,sans-serif}
 
@@ -1060,8 +1060,10 @@ function queueToast(data){ toastQueue.push(data); if(!toastTimer) showNextToast(
 function showNextToast(){
   if(!toastQueue.length){ toastTimer=null; return; }
   const d=toastQueue.shift();
+  const [r,g,b]=d.color;
   document.getElementById('t-tag').textContent  =d.tag;
   document.getElementById('t-word').textContent =d.word;
+  document.getElementById('t-word').style.color =`rgb(${r},${g},${b})`;
   document.getElementById('t-brief').textContent=d.brief;
   document.getElementById('toast').classList.add('show');
   toastTimer=setTimeout(()=>{
