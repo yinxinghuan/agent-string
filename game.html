@@ -212,8 +212,8 @@ const LEVELS = [
   {
     label:'L1', name:'INIT', desc:'语义之源', en_desc:'semantic origins',
     time:90, fs:17, lspace:46, margin:28, scrollNorm:62, scrollSlow:11,
-    layoutMode:'prose', geomCount:0,
-    trapKeys:['static','ghost'],
+    layoutMode:'prose', geomCount:1, geomStrength:0.7,
+    trapKeys:['static','ghost','ozone'],
     allTrapKeys:['static','ghost','ozone','lightning','rain','gaps'],
 
     passage:
@@ -289,8 +289,8 @@ const LEVELS = [
   {
     label:'L2', name:'SCAN', desc:'注意力场', en_desc:'attention field',
     time:80, fs:14, lspace:36, margin:22, scrollNorm:90, scrollSlow:15,
-    layoutMode:'stream', geomCount:0,
-    trapKeys:['error','noise','corrupt'],
+    layoutMode:'stream', geomCount:2, geomStrength:0.9,
+    trapKeys:['error','noise','corrupt','signal'],
     allTrapKeys:['error','noise','corrupt','signal','layer'],
 
     passage:
@@ -369,8 +369,8 @@ const LEVELS = [
   {
     label:'L3', name:'DEEP', desc:'涌现之谷', en_desc:'valley of emergence',
     time:70, fs:19, lspace:54, margin:32, scrollNorm:44, scrollSlow:8,
-    layoutMode:'verse', geomCount:0,
-    trapKeys:['void','dissolve','fragment'],
+    layoutMode:'verse', geomCount:3, geomStrength:1.1,
+    trapKeys:['void','dissolve','fragment','stirs'],
     allTrapKeys:['void','dissolve','fragment','stirs','node','quiet'],
 
     passage:
@@ -701,7 +701,12 @@ const GEOM_TYPES = ['circle','ring','diamond'];
 function spawnGeom(){
   const cfg   = lvCFG();
   const str   = cfg.geomStrength || 1.0;
-  const size  = 28 + Math.random() * 44;
+  // Size: bimodal — mostly small/medium, occasional large/huge
+  const roll = Math.random();
+  const size = roll < 0.35 ? 10 + Math.random()*18      // tiny: 10–28
+             : roll < 0.70 ? 28 + Math.random()*36      // medium: 28–64
+             : roll < 0.90 ? 70 + Math.random()*50      // large: 70–120
+             :               130 + Math.random()*70;    // huge: 130–200
   // Enter from a random screen edge
   const edge  = Math.floor(Math.random() * 4);
   let x, y, vx, vy;
