@@ -15,18 +15,18 @@ body{border-radius:24px;overflow:hidden}
 .ov.gone{opacity:0;pointer-events:none}
 #s-title{font-size:clamp(18px,5vw,28px);letter-spacing:10px;color:rgba(35,25,10,.72);
   margin-bottom:8px;font-family:'Courier New',monospace;font-weight:400}
-#s-sub{font-size:10px;color:rgba(80,130,0,.5);letter-spacing:4px;margin-bottom:32px;
+#s-sub{font-size:11px;color:rgba(35,25,12,.35);letter-spacing:5px;margin-bottom:32px;
   font-family:'Courier New',monospace}
-#s-body{font-size:13px;color:rgba(50,40,20,.45);line-height:2.5;text-align:center;
-  margin-bottom:40px;max-width:270px;font-family:-apple-system,sans-serif}
-#s-body b{color:rgba(80,130,0,.75);font-weight:400}
+#s-body{font-size:15px;color:rgba(35,25,12,.50);line-height:2.4;text-align:center;
+  margin-bottom:40px;max-width:280px;font-family:-apple-system,sans-serif}
+#s-body b{color:rgba(35,25,12,.80);font-weight:500}
 .btn{font-family:'Courier New',monospace;font-size:11px;letter-spacing:5px;
-  color:rgba(80,130,0,.7);border:1px solid rgba(80,130,0,.28);background:transparent;
+  color:rgba(35,25,12,.62);border:1px solid rgba(35,25,12,.25);background:transparent;
   padding:14px 32px;cursor:pointer;touch-action:none;outline:none;-webkit-tap-highlight-color:transparent}
 
 /* Score bar — top */
 #score{position:fixed;top:0;left:0;right:0;z-index:15;display:flex;align-items:center;
-  padding:13px 16px 16px;font-family:'Courier New',monospace;font-size:10px;letter-spacing:3px;
+  padding:13px 16px 16px;font-family:'Courier New',monospace;font-size:12px;letter-spacing:3px;
   pointer-events:none;
   background:linear-gradient(to bottom,#f5f0e6 55%,rgba(245,240,230,0))}
 #sc-name{flex:1;color:rgba(40,30,15,.28)}
@@ -41,18 +41,18 @@ body{border-radius:24px;overflow:hidden}
   opacity:0;transform:translateY(-10px);
   transition:opacity .25s,transform .25s}
 #toast.show{opacity:1;transform:translateY(0)}
-#t-tag{font-size:9px;letter-spacing:4px;color:rgba(40,30,15,.30);
+#t-tag{font-size:10px;letter-spacing:4px;color:rgba(40,30,15,.30);
   font-family:'Courier New',monospace;margin-bottom:5px}
-#t-word{font-size:15px;letter-spacing:4px;font-family:'Courier New',monospace;margin-bottom:4px}
-#t-brief{font-size:12px;color:rgba(40,30,15,.55);line-height:1.7;
+#t-word{font-size:17px;letter-spacing:4px;font-family:'Courier New',monospace;margin-bottom:4px}
+#t-brief{font-size:13px;color:rgba(40,30,15,.55);line-height:1.7;
   font-family:-apple-system,sans-serif}
 
-#e-title{font-size:clamp(22px,5vw,32px);letter-spacing:7px;color:rgba(35,25,10,.78);
+#e-title{font-size:clamp(24px,5vw,34px);letter-spacing:7px;color:rgba(35,25,10,.78);
   margin-bottom:6px;font-family:'Courier New',monospace}
-#e-rows{font-size:11px;color:rgba(40,30,15,.45);letter-spacing:2px;line-height:2.6;
+#e-rows{font-size:13px;color:rgba(40,30,15,.45);letter-spacing:2px;line-height:2.6;
   margin:16px 0 4px;font-family:'Courier New',monospace;text-align:center}
 #e-rule{width:36px;height:1px;background:rgba(40,30,15,.12);margin:14px auto}
-#e-score{font-size:12px;color:rgba(40,30,15,.40);margin-bottom:28px;
+#e-score{font-size:13px;color:rgba(40,30,15,.40);margin-bottom:28px;
   font-family:-apple-system,sans-serif;text-align:center;line-height:1.9}
 </style>
 </head>
@@ -155,7 +155,7 @@ const COMBOS = [
 ];
 
 // ─── CONSTANTS ────────────────────────────────────
-const FS          = 15;
+const FS          = 17;
 const LSPACE      = 44;
 const MARGIN      = 28;
 const TOP         = 70;          // first line Y in layout space
@@ -242,7 +242,18 @@ function update(dt){
   const pts = Object.values(pointers);
 
   for(const w of words){
-    // screenY = w.hy + scrollY; cull out-of-viewport words
+    // Gold missed check runs unconditionally — before any culling
+    if(w.goldIndex >= 0 && !found.has(w.goldIndex) && !w.goldMissed){
+      if(w.hy + scrollY > H + 80){
+        w.goldMissed = true;
+        missed++;
+        missedFx.push({ x: w.hx, t: 1.5, label: GOLD[w.goldIndex].text.toUpperCase() });
+        updateScore();
+        checkEnd();
+      }
+    }
+
+    // Skip physics for words far outside viewport
     const approxSy = w.hy + scrollY;
     if(approxSy < -150 || approxSy > H + 150){
       w.x = w.hx; w.y = w.hy; w.vx = 0; w.vy = 0;
@@ -271,18 +282,8 @@ function update(dt){
     w.vx *= DAMP; w.vy *= DAMP;
     w.x  += w.vx * dt; w.y += w.vy * dt;
 
-    // Gold word logic
+    // Gold reveal logic (only for visible, uncollected, non-missed words)
     if(w.goldIndex >= 0 && !found.has(w.goldIndex) && !w.goldMissed){
-      // Missed: scrolled off bottom
-      if(w.hy + scrollY > H + 80){
-        w.goldMissed = true;
-        missed++;
-        missedFx.push({ x: w.x, t: 1.5, label: GOLD[w.goldIndex].text.toUpperCase() });
-        updateScore();
-        checkEnd();
-        continue;
-      }
-
       // Reveal ONLY via finger proximity — no passive color change
       let fingerBonus = 0;
       for(const p of pts){
@@ -460,7 +461,7 @@ function draw(){
 
   // Missed labels — show at bottom
   ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-  ctx.font = '9px "Courier New",monospace';
+  ctx.font = '11px "Courier New",monospace';
   for(const e of missedFx){
     ctx.fillStyle = `rgba(160,30,30,${(e.t*0.60).toFixed(2)})`;
     ctx.fillText(`↓ ${e.label}`, Math.max(8, Math.min(W-80, e.x-20)), H - 10);
