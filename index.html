@@ -1708,8 +1708,8 @@ const FRIEND_TEMPLATES = [
 
 function buildFriendInjection(){
   if(!friendPool.length){ _injectedPassage=null; _injectedGold=null; return; }
-  // Pick 2–3 random friends
-  const picked = [...friendPool].sort(()=>Math.random()-0.5).slice(0,3);
+  // Pick up to 8 random friends
+  const picked = [...friendPool].sort(()=>Math.random()-0.5).slice(0,8);
   const baseGold = lvCFG().gold;
   const basePassage = lvCFG().passage;
   // Build extra passage lines
