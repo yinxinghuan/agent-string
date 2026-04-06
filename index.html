@@ -36,16 +36,14 @@ body{border-radius:24px;overflow:hidden}
 #sc-found{color:rgba(20,12,5,.52)}
 
 #toast{position:fixed;top:54px;left:14px;right:14px;z-index:15;
-  background:rgba(245,240,228,0.97);border:1px solid rgba(20,12,5,.09);
-  border-radius:10px;padding:13px 15px 14px;pointer-events:none;
-  box-shadow:0 2px 14px rgba(20,12,5,.07);
+  background:#1a1410;border-radius:10px;padding:13px 15px 14px;pointer-events:none;
   opacity:0;transform:translateY(-8px);transition:opacity .22s,transform .22s}
 #toast.show{opacity:1;transform:translateY(0)}
-#t-tag{font-size:10px;letter-spacing:4px;color:rgba(20,12,5,.28);
+#t-tag{font-size:10px;letter-spacing:4px;color:rgba(255,255,255,.30);
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:5px}
 #t-word{font-size:17px;letter-spacing:4px;
   font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:4px}
-#t-brief{font-size:13px;color:rgba(20,12,5,.55);line-height:1.7;font-family:-apple-system,sans-serif}
+#t-brief{font-size:13px;color:rgba(255,255,255,.60);line-height:1.7;font-family:-apple-system,sans-serif}
 
 #e-title{font-size:clamp(22px,5vw,32px);letter-spacing:7px;color:rgba(20,12,5,.78);
   margin-bottom:6px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
@@ -650,7 +648,7 @@ function showNextToast(){
   const d=toastQueue.shift(); const [r,g,b]=d.color;
   document.getElementById('t-tag').textContent  =d.tag;
   document.getElementById('t-word').textContent =d.word;
-  document.getElementById('t-word').style.color =`rgba(${r},${g},${b},0.9)`;
+  document.getElementById('t-word').style.color =`rgba(${r},${g},${b},1.0)`;
   document.getElementById('t-brief').textContent=d.brief;
   document.getElementById('toast').classList.add('show');
   toastTimer=setTimeout(()=>{
