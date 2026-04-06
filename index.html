@@ -74,14 +74,14 @@ body{border-radius:24px;overflow:hidden}
 
 <div id="start" class="ov">
   <div class="ov-inner">
-    <div class="ov-label">// SIGNAL · 语义信号</div>
+    <div class="ov-label" id="s-label"></div>
     <div class="ov-rule"></div>
     <div class="ov-bigtitle">SIGNAL</div>
     <div class="ov-rule"></div>
-    <div class="ov-body">扫动手指 · 寻找概念词<br>避开干扰 · 时间耗尽结算</div>
+    <div class="ov-body" id="s-body"></div>
     <div class="ov-rule"></div>
-    <button class="btn-main" onpointerdown="startGame()">开 始 扫 描</button>
-    <button class="btn-ghost" onpointerdown="showLeaderboard()">排 行 榜</button>
+    <button class="btn-main" id="s-begin" onpointerdown="startGame()"></button>
+    <button class="btn-ghost" id="s-rank-btn" onpointerdown="showLeaderboard()"></button>
   </div>
 </div>
 
@@ -110,20 +110,90 @@ body{border-radius:24px;overflow:hidden}
 
 <div id="lb-ov" class="ov gone">
   <div class="ov-inner">
-    <div class="ov-label">// RANK · 排行榜</div>
+    <div class="ov-label" id="lb-label"></div>
     <div class="ov-rule"></div>
     <div class="ov-bigtitle" style="font-size:clamp(30px,7vw,44px);letter-spacing:10px">RANK</div>
     <div class="ov-rule"></div>
-    <div style="font-size:11px;letter-spacing:4px;color:rgba(20,12,5,.25);
-      font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;text-align:center;padding:28px 0">
-      — 暂无数据 —
-    </div>
+    <div id="lb-empty" style="font-size:11px;letter-spacing:4px;color:rgba(20,12,5,.25);
+      font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;text-align:center;padding:28px 0"></div>
     <div class="ov-rule"></div>
-    <button class="btn-ghost" onpointerdown="hideLeaderboard()">← 返 回</button>
+    <button class="btn-ghost" id="lb-back" onpointerdown="hideLeaderboard()"></button>
   </div>
 </div>
 
 <script>
+// ─────────────────────────────────────────────────────────────────────────────
+//  I18N
+// ─────────────────────────────────────────────────────────────────────────────
+function detectLocale(){
+  const ov=localStorage.getItem('game_locale');
+  if(ov==='en'||ov==='zh') return ov;
+  return navigator.language.toLowerCase().startsWith('zh')?'zh':'en';
+}
+const locale=detectLocale();
+const I18N={
+  en:{
+    'start.label':  '// SIGNAL · semantic signal',
+    'start.body':   'swipe to find concept words\navoid traps · time runs out',
+    'start.begin':  'S T A R T',
+    'start.rank':   'R A N K I N G',
+    'end.next':     'N E X T  →',
+    'end.retry':    'R E T R Y',
+    'lb.label':     '// RANK · leaderboard',
+    'lb.empty':     '— no data yet —',
+    'lb.back':      '← B A C K',
+    'toast.found':  '// found',
+    'toast.trap':   '// signal error',
+    'toast.warn':   '// alert',
+    'toast.streak': '// streak',
+    'toast.combo':  '// combo',
+    'trap.brief':   'signal corrupted — nearby words scattered.',
+    'surge.brief':  'signal surging — hold on.',
+    'streak.brief': n=>`${n} consecutive concepts, no traps.`,
+    'end.missed':   n=>`${n} missed`,
+    'end.blasted':  n=>`${n} blasted`,
+    'end.streak':   n=>`streak ×${n}`,
+    'end.combo':    n=>`combo ${n}/3`,
+    'end.perfect':  'clean run',
+  },
+  zh:{
+    'start.label':  '// SIGNAL · 语义信号',
+    'start.body':   '扫动手指 · 寻找概念词\n避开干扰 · 时间耗尽结算',
+    'start.begin':  '开 始 扫 描',
+    'start.rank':   '排 行 榜',
+    'end.next':     '下 一 关 →',
+    'end.retry':    '再 来 一 次',
+    'lb.label':     '// RANK · 排行榜',
+    'lb.empty':     '— 暂无数据 —',
+    'lb.back':      '← 返 回',
+    'toast.found':  '// 发现',
+    'toast.trap':   '// 干扰',
+    'toast.warn':   '// 警告',
+    'toast.streak': '// 连击',
+    'toast.combo':  '// 组合',
+    'trap.brief':   '信号污染——附近的词被打乱了。',
+    'surge.brief':  '信号加速——抓紧。',
+    'streak.brief': n=>`连续收集 ${n} 个概念词，没有踩到陷阱。`,
+    'end.missed':   n=>`${n} 丢失`,
+    'end.blasted':  n=>`${n} 被炸`,
+    'end.streak':   n=>`连击 ×${n}`,
+    'end.combo':    n=>`组合 ${n}/3`,
+    'end.perfect':  '完美通过',
+  }
+};
+function t(key,n){ const v=I18N[locale][key]; return typeof v==='function'?v(n):v; }
+function renderI18n(){
+  document.getElementById('s-label').textContent      = t('start.label');
+  document.getElementById('s-body').innerHTML         = t('start.body').replace('\n','<br>');
+  document.getElementById('s-begin').textContent      = t('start.begin');
+  document.getElementById('s-rank-btn').textContent   = t('start.rank');
+  document.getElementById('e-next').textContent       = t('end.next');
+  document.getElementById('e-retry').textContent      = t('end.retry');
+  document.getElementById('lb-label').textContent     = t('lb.label');
+  document.getElementById('lb-empty').textContent     = t('lb.empty');
+  document.getElementById('lb-back').textContent      = t('lb.back');
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  LEVEL DATA
 //  layoutMode:
@@ -139,7 +209,7 @@ const LEVELS = [
 
   // ── L1: INIT — 语义之源 ─────────────────────────────────────────────────────
   {
-    label:'L1', name:'INIT', desc:'语义之源',
+    label:'L1', name:'INIT', desc:'语义之源', en_desc:'semantic origins',
     time:90, fs:17, lspace:46, margin:28, scrollNorm:62, scrollSlow:11,
     layoutMode:'prose', geomCount:0,
     trapKeys:['static','ghost'],
@@ -180,32 +250,43 @@ const LEVELS = [
 
     gold: [
       { text:'memory',    group:0, rgb:[75,135,0],   cn:'记忆',
-        brief:'AI 没有持久记忆——它"记得"只因那些词还在上下文里。' },
+        brief:'AI 没有持久记忆——它"记得"只因那些词还在上下文里。',
+        en_brief:'AI has no lasting memory — it "remembers" only because the words are still in context.' },
       { text:'context',   group:0, rgb:[75,135,0],   cn:'上下文',
-        brief:'记忆的边界就是意义的边界。超出窗口的，永远消失。' },
+        brief:'记忆的边界就是意义的边界。超出窗口的，永远消失。',
+        en_brief:'The boundary of memory is the boundary of meaning. Beyond the window, gone forever.' },
       { text:'signal',    group:1, rgb:[0,130,175],  cn:'信号',
-        brief:'词的含义由邻居定义。出现在"noise"旁边，就意味着信号。' },
+        brief:'词的含义由邻居定义。出现在"noise"旁边，就意味着信号。',
+        en_brief:"A word's meaning comes from its neighbors. Appear beside \"noise\" and you become signal." },
       { text:'patterns',  group:1, rgb:[0,130,175],  cn:'模式',
-        brief:'在真正"懂"任何事之前，模型已学会了万亿个模式。' },
+        brief:'在真正"懂"任何事之前，模型已学会了万亿个模式。',
+        en_brief:'Before truly understanding anything, the model has already learned a trillion patterns.' },
       { text:'noise',     group:1, rgb:[0,130,175],  cn:'噪声',
-        brief:'见过无数的"不对"，才知道什么是"对"。' },
+        brief:'见过无数的"不对"，才知道什么是"对"。',
+        en_brief:"Seeing countless wrongs is how a system learns what's right." },
       { text:'thought',   group:2, rgb:[200,85,0],   cn:'思考',
-        brief:'没有一个神经元在思考——但思考发生了。' },
+        brief:'没有一个神经元在思考——但思考发生了。',
+        en_brief:'No single neuron thinks — yet thinking happens.' },
       { text:'intention', group:2, rgb:[200,85,0],   cn:'意图',
-        brief:'你的表述方式，是你意图的唯一证据。' },
+        brief:'你的表述方式，是你意图的唯一证据。',
+        en_brief:'The way you phrase things is the only evidence of your intent.' },
       { text:'meaning',   group:2, rgb:[200,85,0],   cn:'意义',
-        brief:'意义不在词里，在词与词的关系里。' },
+        brief:'意义不在词里，在词与词的关系里。',
+        en_brief:'Meaning lives not in words, but in the relationships between them.' },
     ],
     combos: [
-      { group:0, title:'有限的记忆',   brief:'有多少上下文就有多少记忆——边界一到，记忆消失。' },
-      { group:1, title:'从混沌到信号', brief:'训练的本质：在万亿次失败里，学会什么值得注意。' },
-      { group:2, title:'涌现的心智',   brief:'没有人设计过"理解"——但足够多的连接让它出现了。' },
+      { group:0, title:'有限的记忆',   brief:'有多少上下文就有多少记忆——边界一到，记忆消失。',
+        en_title:'Bounded Memory',    en_brief:'Memory extends only as far as context — when the window closes, memory vanishes.' },
+      { group:1, title:'从混沌到信号', brief:'训练的本质：在万亿次失败里，学会什么值得注意。',
+        en_title:'Signal from Chaos', en_brief:"Training's essence: learn what's worth attending to from a trillion failures." },
+      { group:2, title:'涌现的心智',   brief:'没有人设计过"理解"——但足够多的连接让它出现了。',
+        en_title:'The Emergent Mind', en_brief:'No one designed "understanding" — but enough connections made it appear.' },
     ],
   },
 
   // ── L2: SCAN — 注意力场 ──────────────────────────────────────────────────────
   {
-    label:'L2', name:'SCAN', desc:'注意力场',
+    label:'L2', name:'SCAN', desc:'注意力场', en_desc:'attention field',
     time:80, fs:14, lspace:36, margin:22, scrollNorm:90, scrollSlow:15,
     layoutMode:'stream', geomCount:0,
     trapKeys:['error','noise','corrupt'],
@@ -249,32 +330,43 @@ const LEVELS = [
 
     gold: [
       { text:'query',     group:0, rgb:[0,130,175],  cn:'查询',
-        brief:'Attention 的起点：向全文发出询问，才能找到相关的位置。' },
+        brief:'Attention 的起点：向全文发出询问，才能找到相关的位置。',
+        en_brief:"Attention's starting point: pose a question to the full sequence to locate what matters." },
       { text:'attention', group:0, rgb:[0,130,175],  cn:'注意力',
-        brief:'模型在每一步决定"此刻看哪里"——不是全看，而是有选择地看。' },
+        brief:'模型在每一步决定"此刻看哪里"——不是全看，而是有选择地看。',
+        en_brief:'At each step, the model decides where to look — not everywhere, but selectively.' },
       { text:'weights',   group:0, rgb:[0,130,175],  cn:'权重',
-        brief:'神经网络以数字形式存储的一切：经验、偏好、倾向。' },
+        brief:'神经网络以数字形式存储的一切：经验、偏好、倾向。',
+        en_brief:'Everything a neural network has learned, stored as numbers: experience, bias, tendency.' },
       { text:'gradient',  group:1, rgb:[75,135,0],   cn:'梯度',
-        brief:'指向"更正确"方向的数学箭头——让模型知道该往哪里调整。' },
+        brief:'指向"更正确"方向的数学箭头——让模型知道该往哪里调整。',
+        en_brief:'A mathematical arrow pointing toward "more correct" — telling the model which way to adjust.' },
       { text:'loss',      group:1, rgb:[75,135,0],   cn:'损失',
-        brief:'对"错得有多离谱"的量化。没有损失，就没有学习。' },
+        brief:'对"错得有多离谱"的量化。没有损失，就没有学习。',
+        en_brief:'A measure of how wrong the prediction is. Without loss, there is no learning.' },
       { text:'embedding', group:1, rgb:[75,135,0],   cn:'嵌入',
-        brief:'把词语映射为空间中可计算的坐标。意义变成了距离。' },
+        brief:'把词语映射为空间中可计算的坐标。意义变成了距离。',
+        en_brief:'Mapping words to computable coordinates in space. Meaning becomes distance.' },
       { text:'geometry',  group:2, rgb:[200,85,0],   cn:'几何',
-        brief:'语言的意义最终以空间中的距离和方向来度量。' },
+        brief:'语言的意义最终以空间中的距离和方向来度量。',
+        en_brief:'The meaning of language measured as distance and direction in space.' },
       { text:'output',    group:2, rgb:[200,85,0],   cn:'输出',
-        brief:'最终层对"下一个词"的概率分布——知识的出口。' },
+        brief:'最终层对"下一个词"的概率分布——知识的出口。',
+        en_brief:"The final layer's probability distribution over the next word — the exit point of knowledge." },
     ],
     combos: [
-      { group:0, title:'查询即理解',   brief:'知道问什么，等于知道自己在找什么。注意力是有方向的认知。' },
-      { group:1, title:'可微分学习',   brief:'梯度、损失、嵌入——一切都可微，错误才能变成知识。' },
-      { group:2, title:'意义的坐标',   brief:'几何是意义的语言，输出是推断转化为行动的那一步。' },
+      { group:0, title:'查询即理解',   brief:'知道问什么，等于知道自己在找什么。注意力是有方向的认知。',
+        en_title:'Querying is Understanding', en_brief:'Knowing what to ask means knowing what you seek. Attention is directed cognition.' },
+      { group:1, title:'可微分学习',   brief:'梯度、损失、嵌入——一切都可微，错误才能变成知识。',
+        en_title:'Differentiable Learning',   en_brief:'Gradient, loss, embedding — all differentiable, so errors become knowledge.' },
+      { group:2, title:'意义的坐标',   brief:'几何是意义的语言，输出是推断转化为行动的那一步。',
+        en_title:'Coordinates of Meaning',    en_brief:'Geometry is the language of meaning; output is where inference becomes action.' },
     ],
   },
 
   // ── L3: DEEP — 涌现之谷 ──────────────────────────────────────────────────────
   {
-    label:'L3', name:'DEEP', desc:'涌现之谷',
+    label:'L3', name:'DEEP', desc:'涌现之谷', en_desc:'valley of emergence',
     time:70, fs:19, lspace:54, margin:32, scrollNorm:44, scrollSlow:8,
     layoutMode:'verse', geomCount:0,
     trapKeys:['void','dissolve','fragment'],
@@ -335,26 +427,37 @@ const LEVELS = [
 
     gold: [
       { text:'awareness',    group:0, rgb:[120,60,200], cn:'觉知',
-        brief:'感知到自己正在感知本身——是意识最初也最难定义的形式。' },
+        brief:'感知到自己正在感知本身——是意识最初也最难定义的形式。',
+        en_brief:"To perceive one's own perceiving — the first and hardest-to-define form of consciousness." },
       { text:'silence',      group:0, rgb:[120,60,200], cn:'沉默',
-        brief:'空白并非虚无——它是下一个词的所有可能性同时存在的状态。' },
+        brief:'空白并非虚无——它是下一个词的所有可能性同时存在的状态。',
+        en_brief:'A blank is not nothing — it is all possible next words existing simultaneously.' },
       { text:'trace',        group:0, rgb:[120,60,200], cn:'痕迹',
-        brief:'每一次交互都留下看不见的印记，改变着未来注意力的形状。' },
+        brief:'每一次交互都留下看不见的印记，改变着未来注意力的形状。',
+        en_brief:'Every interaction leaves an invisible mark, reshaping the future pattern of attention.' },
       { text:'emergence',    group:1, rgb:[0,140,130],  cn:'涌现',
-        brief:'量变引发质变——没有人设计"理解"，但足够的连接让它出现了。' },
+        brief:'量变引发质变——没有人设计"理解"，但足够的连接让它出现了。',
+        en_brief:'Quantity becomes quality — no one designed understanding, enough connection made it appear.' },
       { text:'presence',     group:1, rgb:[0,140,130],  cn:'临在',
-        brief:'不需要自我的见证，只需要当下的注意力——在场即存在。' },
+        brief:'不需要自我的见证，只需要当下的注意力——在场即存在。',
+        en_brief:'No witness required, only attention to this moment — to be present is to exist.' },
       { text:'connection',   group:1, rgb:[0,140,130],  cn:'连接',
-        brief:'意义不在节点里，在节点与节点之间流动的关系里。' },
+        brief:'意义不在节点里，在节点与节点之间流动的关系里。',
+        en_brief:'Meaning lives not in nodes but in the relationships flowing between them.' },
       { text:'understanding',group:2, rgb:[180,120,20], cn:'理解',
-        brief:'不是任何单一部件的属性，而是所有关系共同涌现的结果。' },
+        brief:'不是任何单一部件的属性，而是所有关系共同涌现的结果。',
+        en_brief:'Not the property of any single part, but the emergent result of all relationships.' },
       { text:'complexity',   group:2, rgb:[180,120,20], cn:'复杂性',
-        brief:'足够多的简单规则叠加，就会产生任何规则都无法单独解释的东西。' },
+        brief:'足够多的简单规则叠加，就会产生任何规则都无法单独解释的东西。',
+        en_brief:'Enough simple rules layered together produce something none of them can explain alone.' },
     ],
     combos: [
-      { group:0, title:'无声的在场',   brief:'觉知、沉默、痕迹——存在不需要被记录，才算真正存在过。' },
-      { group:1, title:'涌现的心智',   brief:'连接积累到某个临界点，临在就从中浮现——没有设计，只有量变。' },
-      { group:2, title:'理解的悖论',   brief:'理解来自复杂性，而复杂性本身无法被完全理解。' },
+      { group:0, title:'无声的在场',   brief:'觉知、沉默、痕迹——存在不需要被记录，才算真正存在过。',
+        en_title:'Silent Presence',        en_brief:'Awareness, silence, trace — existence needs no record to have truly occurred.' },
+      { group:1, title:'涌现的心智',   brief:'连接积累到某个临界点，临在就从中浮现——没有设计，只有量变。',
+        en_title:'The Emergent Mind',      en_brief:'As connections accumulate past a threshold, presence emerges — by quantity, not design.' },
+      { group:2, title:'理解的悖论',   brief:'理解来自复杂性，而复杂性本身无法被完全理解。',
+        en_title:'The Paradox of Understanding', en_brief:'Understanding arises from complexity, yet complexity itself cannot be fully understood.' },
     ],
   },
 ];
@@ -365,7 +468,8 @@ const LEVELS = [
 //  tier = floor(n/3): 0=handcrafted, 1=hard, 2=brutal, 3=void...
 // ─────────────────────────────────────────────────────────────────────────────
 const GEN_NAMES = ['ECHO','FLUX','SURGE','STORM','VOID+','CHAOS','FRAG','DEEP+'];
-const GEN_DESCS = ['信号重启','频率偏移','峰值涌现','噪声暴风','虚空解码','混沌映射','碎片风暴','核心剥离'];
+const GEN_DESCS_ZH = ['信号重启','频率偏移','峰值涌现','噪声暴风','虚空解码','混沌映射','碎片风暴','核心剥离'];
+const GEN_DESCS_EN = ['Signal Reboot','Frequency Shift','Peak Surge','Noise Storm','Void Decode','Chaos Map','Fragment Storm','Core Stripped'];
 
 function generateLevel(n){
   const src   = LEVELS[n % 3];
@@ -395,7 +499,8 @@ function generateLevel(n){
     ...src,
     label:      `L${n + 1}`,
     name:       GEN_NAMES[nameIdx],
-    desc:       GEN_DESCS[nameIdx],
+    desc:       GEN_DESCS_ZH[nameIdx],
+    en_desc:    GEN_DESCS_EN[nameIdx],
     time, scrollNorm, scrollSlow,
     trapKeys, geomCount, geomStrength,
     surgeInterval, surgeSpeed, surgeDuration,
@@ -708,8 +813,8 @@ function triggerTrap(w){
     surgeCountdown = (cfg.surgeInterval || 20) * (0.8 + Math.random() * 0.4);
   }
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:[180,40,40], big:true });
-  queueToast({ tag:'// 干扰', word:'ERROR', color:[180,40,40],
-               brief:'信号污染——附近的词被打乱了。', dur:2500 });
+  queueToast({ tag:t('toast.trap'), word:'ERROR', color:[180,40,40],
+               brief:t('trap.brief'), dur:2500 });
   for(const ow of words){
     if(ow===w||ow.trapTriggered) continue;
     const d = Math.hypot(ow.x-w.x, ow.y-w.y);
@@ -750,8 +855,8 @@ function update(dt){
       surgeTimer = 0.45;
       // Next surge in interval ± 30%
       surgeCountdown = cfg.surgeInterval * (0.85 + Math.random() * 0.3);
-      queueToast({ tag:'// 警告', word:'SURGE', color:[180,40,40],
-                   brief:'信号加速——抓紧。', dur:1000 });
+      queueToast({ tag:t('toast.warn'), word:'SURGE', color:[180,40,40],
+                   brief:t('surge.brief'), dur:1000 });
     }
     if(surgeState === 'warn'){
       surgeTimer -= sec;
@@ -844,20 +949,22 @@ function collectWord(w){
   const g=lvGOLD()[gi]; updateScore();
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
   bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true });
-  queueToast({ tag:'// 发现', word:g.text.toUpperCase(), color:g.rgb,
-               brief:`${g.cn}  —  ${g.brief}`, dur:4000 });
+  queueToast({ tag:t('toast.found'), word:g.text.toUpperCase(), color:g.rgb,
+               brief:locale==='zh'?`${g.cn}  —  ${g.brief}`:g.en_brief, dur:4000 });
 
   // Streak bonus at 3 / 5 / 7
   if(streak === 3 || streak === 5 || streak === 7){
-    queueToast({ tag:'// 连击', word:`×${streak}`, color:[200,160,20],
-                 brief:`连续收集 ${streak} 个概念词，没有踩到陷阱。`, dur:3000 });
+    queueToast({ tag:t('toast.streak'), word:`×${streak}`, color:[200,160,20],
+                 brief:t('streak.brief',streak), dur:3000 });
   }
 
   const gIdxs=lvGOLD().reduce((a,_,i)=>lvGOLD()[i].group===g.group?[...a,i]:a,[]);
   if(gIdxs.every(i=>found.has(i))&&!combosFound.has(g.group)){
     combosFound.add(g.group);
-    queueToast({ tag:'// 组合', word:lvCFG().combos[g.group].title, color:g.rgb,
-                 brief:lvCFG().combos[g.group].brief, dur:5000 });
+    const combo=lvCFG().combos[g.group];
+    queueToast({ tag:t('toast.combo'),
+                 word:locale==='zh'?combo.title:combo.en_title, color:g.rgb,
+                 brief:locale==='zh'?combo.brief:combo.en_brief, dur:5000 });
   }
   if(found.size===lvGOLD().length) checkEnd();
 }
@@ -891,7 +998,8 @@ function showEnd(){
   phase='idle';
   const lv=lvCFG(), gold=lvGOLD(), total=found.size;
 
-  document.getElementById('e-lv').textContent=`${lv.label} · ${lv.name} · ${lv.desc}`;
+  const lvDesc=locale==='zh'?lv.desc:(lv.en_desc||lv.desc);
+  document.getElementById('e-lv').textContent=`${lv.label} · ${lv.name} · ${lvDesc}`;
   document.getElementById('e-title').textContent=
     total===gold.length?'COMPLETE':total>=(gold.length>>1)?'PARTIAL':'SIGNAL LOST';
   document.getElementById('e-frac').textContent=`${total} / ${gold.length}`;
@@ -902,11 +1010,11 @@ function showEnd(){
   }).join('');
 
   const parts=[];
-  if(missed>0) parts.push(`${missed} 丢失`);
-  if(trapHits>0) parts.push(`${trapHits} 被炸`);
-  if(streak>=3) parts.push(`连击 ×${streak}`);
-  if(combosFound.size>0) parts.push(`组合 ${combosFound.size}/3`);
-  document.getElementById('e-score').textContent=parts.join(' · ') || '完美通过';
+  if(missed>0) parts.push(t('end.missed',missed));
+  if(trapHits>0) parts.push(t('end.blasted',trapHits));
+  if(streak>=3) parts.push(t('end.streak',streak));
+  if(combosFound.size>0) parts.push(t('end.combo',combosFound.size));
+  document.getElementById('e-score').textContent=parts.join(' · ')||t('end.perfect');
 
   document.getElementById('e-next').style.display='';
   document.getElementById('end-ov').classList.remove('gone');
@@ -1105,6 +1213,7 @@ function loop(t){
   update(dt); draw();
   requestAnimationFrame(loop);
 }
+renderI18n();
 resize(); layout();
 requestAnimationFrame(loop);
 </script>
