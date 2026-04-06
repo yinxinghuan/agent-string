@@ -596,22 +596,22 @@ function update(dt){
 
     if(w.goldIndex>=0&&!found.has(w.goldIndex)&&!w.goldMissed&&!w.corrupted){
       let bonus=0;
-      for(const p of pts){ const d=Math.hypot(p.x-w.hx,p.y+scrollY-w.hy); if(d<110) bonus=Math.max(bonus,1-d/110); }
-      w.goldAlpha+=(bonus-w.goldAlpha)*0.10;
-      if(w.goldAlpha>0.55){ w.revealTimer+=sec; if(w.revealTimer>=1.0) collectWord(w); }
-      else w.revealTimer=Math.max(0, w.revealTimer-sec*1.5);
+      for(const p of pts){ const d=Math.hypot(p.x-w.hx,p.y+scrollY-w.hy); if(d<140) bonus=Math.max(bonus,1-d/140); }
+      w.goldAlpha+=(bonus-w.goldAlpha)*0.22;   // 快速浮现
+      if(w.goldAlpha>0.42){ w.revealTimer+=sec; if(w.revealTimer>=0.42) collectWord(w); }
+      else w.revealTimer=Math.max(0, w.revealTimer-sec*0.6); // 慢消退，扫过有余韵
     }
 
     if(w.trapWord&&!w.trapTriggered){
       let bonus=0;
-      for(const p of pts){ const d=Math.hypot(p.x-w.hx,p.y+scrollY-w.hy); if(d<100) bonus=Math.max(bonus,1-d/100); }
-      w.trapAlpha+=(bonus-w.trapAlpha)*0.12;
-      if(w.trapAlpha>0.55){ w.trapTimer+=sec; if(w.trapTimer>=0.4) triggerTrap(w); }
+      for(const p of pts){ const d=Math.hypot(p.x-w.hx,p.y+scrollY-w.hy); if(d<120) bonus=Math.max(bonus,1-d/120); }
+      w.trapAlpha+=(bonus-w.trapAlpha)*0.18;
+      if(w.trapAlpha>0.45){ w.trapTimer+=sec; if(w.trapTimer>=0.28) triggerTrap(w); }
       else w.trapTimer=Math.max(0, w.trapTimer-sec*2.0);
     }
   }
 
-  for(const b of bursts)   b.t=Math.max(0,b.t-sec*(b.big?1.4:1.8));
+  for(const b of bursts)   b.t=Math.max(0,b.t-sec*(b.big?1.4:b.flash?3.5:1.2));
   for(const e of missedFx) e.t=Math.max(0,e.t-sec*0.9);
   bursts  =bursts.filter(b=>b.t>0);
   missedFx=missedFx.filter(e=>e.t>0);
@@ -624,7 +624,8 @@ function collectWord(w){
   const gi=w.goldIndex; if(found.has(gi)) return;
   found.add(gi);
   const g=lvGOLD()[gi]; updateScore();
-  bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });
+  bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb });          // 外扩环
+  bursts.push({ x:w.x, screenY:w.y-scrollY, t:1.0, rgb:g.rgb, flash:true }); // 内闪
   queueToast({ tag:'// 发现', word:g.text.toUpperCase(), color:g.rgb,
                brief:`${g.cn}  —  ${g.brief}`, dur:4000 });
   const gIdxs=lvGOLD().reduce((a,_,i)=>lvGOLD()[i].group===g.group?[...a,i]:a,[]);
@@ -769,10 +770,16 @@ function draw(){
       ctx.strokeStyle=`rgba(${r},${g},${bb},${(b.t*0.70).toFixed(2)})`; ctx.lineWidth=3; ctx.stroke();
       ctx.beginPath(); ctx.arc(b.x,b.screenY,r2,0,Math.PI*2);
       ctx.strokeStyle=`rgba(${r},${g},${bb},${(b.t*0.30).toFixed(2)})`; ctx.lineWidth=1; ctx.stroke();
-    } else {
-      const radius=(1-b.t)*55;
+    } else if(b.flash){
+      // 快速内填充闪光
+      const radius=(1-b.t)*28;
       ctx.beginPath(); ctx.arc(b.x,b.screenY,radius,0,Math.PI*2);
-      ctx.strokeStyle=`rgba(${r},${g},${bb},${(b.t*0.55).toFixed(2)})`; ctx.lineWidth=2; ctx.stroke();
+      ctx.fillStyle=`rgba(${r},${g},${bb},${(b.t*0.40).toFixed(2)})`; ctx.fill();
+    } else {
+      // 外扩环，更大
+      const radius=(1-b.t)*80;
+      ctx.beginPath(); ctx.arc(b.x,b.screenY,radius,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(${r},${g},${bb},${(b.t*0.60).toFixed(2)})`; ctx.lineWidth=2.5; ctx.stroke();
     }
   }
 
