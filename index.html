@@ -6,7 +6,7 @@
 <title>SIGNAL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=DM+Mono:wght@400;500&family=Fira+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Inconsolata:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Martian+Mono:wght@400&family=Roboto+Mono:wght@400;500&family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#f5f0e6}
@@ -609,15 +609,39 @@ function glitchText(text, seed){
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
+// ── Player UI font pool (chooser, applies to DOM elements) ───────────────────
 const FONTS = [
-  { name:'SF Mono (系统)',   stack:`ui-monospace,'SF Mono',Menlo,Consolas,monospace` },
   { name:'IBM Plex Mono',   stack:`'IBM Plex Mono',monospace` },
   { name:'JetBrains Mono',  stack:`'JetBrains Mono',monospace` },
   { name:'Space Mono',      stack:`'Space Mono',monospace` },
   { name:'DM Mono',         stack:`'DM Mono',monospace` },
+  { name:'Fira Mono',       stack:`'Fira Mono',monospace` },
+  { name:'Roboto Mono',     stack:`'Roboto Mono',monospace` },
+  { name:'Inconsolata',     stack:`'Inconsolata',monospace` },
+  { name:'Courier Prime',   stack:`'Courier Prime',monospace` },
+  { name:'Martian Mono',    stack:`'Martian Mono',monospace` },
+  { name:'SF Mono',         stack:`ui-monospace,'SF Mono',Menlo,Consolas,monospace` },
 ];
-let fontIdx = parseInt(localStorage.getItem('signal_font')||'1');
-function FONT(){ return FONTS[fontIdx].stack; }
+let fontIdx = parseInt(localStorage.getItem('signal_font')||'0');
+
+// ── Signal health font system ─────────────────────────────────────────────────
+// signalHealth: 4=clean → 0=chaos. Degrades on trap hit, repairs on streak.
+// Layout always uses HEALTH_FONTS[4] so word positions stay stable.
+// Only the visual render font changes, creating displacement as signal degrades.
+const HEALTH_FONTS = [
+  `'VT323',monospace`,          // 0 — terminal chaos
+  `'Martian Mono',monospace`,   // 1 — condensed alien script
+  `'Space Mono',monospace`,     // 2 — geometric, hard to scan
+  `'Roboto Mono',monospace`,    // 3 — sterile, clinical
+  `'Inconsolata',monospace`,    // 4 — clean, open (full health)
+];
+const GLITCH_FONT = `'VT323',monospace`; // brief flash on trap hit
+
+// Layout always uses full-health font for stable word positions
+function FONT(){ return HEALTH_FONTS[4]; }
+// Visual render: glitch flash > health font
+function renderFont(){ return trapFontTimer > 0 ? GLITCH_FONT : HEALTH_FONTS[signalHealth]; }
+
 function applyFont(){
   const f = FONTS[fontIdx].stack;
   document.querySelectorAll('.ov-label,.ov-bigtitle,.ov-body,.btn-main,.btn-ghost,#s-rank-btn,#score,#toast,#t-tag,#t-word,#font-name,#font-switcher span').forEach(el=>{
@@ -668,6 +692,8 @@ let streak       = 0;
 let surgeState    = 'idle'; // 'idle' | 'warn' | 'active'
 let surgeCountdown= 0;      // seconds until next surge
 let surgeTimer    = 0;      // remaining time in current warn/active phase
+let trapFontTimer  = 0;     // >0 = canvas uses GLITCH_FONT (brief flash)
+let signalHealth   = 4;     // 0–4: degrades on trap, repairs on streak
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PASSAGE PARSING
@@ -911,6 +937,8 @@ function triggerTrap(w){
   w.trapTriggered = true; trapHits++;
   streak = 0;
   screenShake = Math.min(1.0, screenShake + 0.7);
+  signalHealth = Math.max(0, signalHealth - 1);
+  trapFontTimer = 1.8;
   sfxTrap();
   // In generated levels: trap also triggers a mini surge
   const cfg = lvCFG();
@@ -949,7 +977,8 @@ function update(dt){
   updateScore();
   if(timeLeft<=0){ checkEnd(); return; }
 
-  screenShake = Math.max(0, screenShake - sec*2.8);
+  screenShake  = Math.max(0, screenShake - sec*2.8);
+  trapFontTimer = Math.max(0, trapFontTimer - sec);
 
   const cfg = lvCFG();
   const hasFingers = Object.keys(pointers).length > 0;
@@ -1061,9 +1090,10 @@ function collectWord(w){
   queueToast({ tag:t('toast.found'), word:g.text.toUpperCase(), color:g.rgb,
                brief:locale==='zh'?`${g.cn}  —  ${g.brief}`:g.en_brief, dur:4000 });
 
-  // Streak bonus at 3 / 5 / 7
+  // Streak bonus at 3 / 5 / 7 — also repairs signal health
   if(streak === 3 || streak === 5 || streak === 7){
     sfxStreak(streak);
+    if(signalHealth < 4){ signalHealth = Math.min(4, signalHealth + 1); }
     queueToast({ tag:t('toast.streak'), word:`×${streak}`, color:[200,160,20],
                  brief:t('streak.brief',streak), dur:3000 });
   }
@@ -1158,7 +1188,7 @@ function draw(){
   drawGeoms();
 
   const fs=lvFS(), gold=lvGOLD();
-  ctx.font=`${fs}px ${FONT()}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font=`${fs}px ${renderFont()}`; ctx.textAlign='center'; ctx.textBaseline='middle';
 
   const dangerBars=[];
 
@@ -1253,7 +1283,7 @@ function draw(){
   }
 
   // Missed labels
-  ctx.textAlign='left'; ctx.textBaseline='top'; ctx.font=`11px ${FONT()}`;
+  ctx.textAlign='left'; ctx.textBaseline='top'; ctx.font=`11px ${renderFont()}`;
   for(const e of missedFx){
     ctx.fillStyle=`rgba(160,30,30,${(e.t*0.58).toFixed(2)})`;
     ctx.fillText(`↑ ${e.label}`, Math.max(8,Math.min(W-80,e.x-20)),10);
@@ -1311,6 +1341,7 @@ function startGame(){
   scrollY=0; scrollVel=0; pulseT=0;
   geoms=[]; screenShake=0; streak=0;
   surgeState='idle'; surgeTimer=0;
+  signalHealth=4; trapFontTimer=0;
   // First surge delayed — give player time to settle in
   surgeCountdown = (lvCFG().surgeInterval || 99) * (0.6 + Math.random() * 0.4);
   timeLeft=lvCFG().time; phase='idle';
