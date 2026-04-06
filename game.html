@@ -717,8 +717,8 @@ function spawnGeom(){
     size,
     spin: Math.random()*Math.PI*2,
     spinV: (Math.random()-.5) * 0.015,
-    repelR: size * 2.8,
-    strength: str * (1.2 + Math.random() * 1.0),
+    repelR: size * 4.5,
+    strength: str * (9 + Math.random() * 4),
     alive: true,
   });
 }
@@ -750,7 +750,7 @@ function updateGeoms(sec){
       const dx = w.x - g.x, dy = w.y - gly;
       const d  = Math.sqrt(dx*dx + dy*dy);
       if(d < g.repelR && d > 0.5){
-        const f = (1 - d/g.repelR) * g.strength * 0.7;
+        const f = (1 - d/g.repelR) * g.strength;
         w.vx += dx/d * f; w.vy += dy/d * f;
       }
     }
@@ -764,13 +764,12 @@ function drawGeoms(){
     ctx.translate(g.x, g.y);
     ctx.rotate(g.spin);
 
-    const alpha = 0.07;
-    ctx.strokeStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},${alpha * 3})`;
-    ctx.lineWidth   = 1.2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.82)';
+    ctx.lineWidth   = 1.5;
 
     if(g.type === 'circle'){
       ctx.beginPath(); ctx.arc(0, 0, g.size, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},${alpha * 0.5})`;
+      ctx.fillStyle = 'rgba(0,0,0,0.10)';
       ctx.fill(); ctx.stroke();
     } else if(g.type === 'ring'){
       ctx.beginPath(); ctx.arc(0, 0, g.size, 0, Math.PI*2); ctx.stroke();
@@ -780,7 +779,7 @@ function drawGeoms(){
       ctx.beginPath();
       ctx.moveTo(0,-s); ctx.lineTo(s*.65,0); ctx.lineTo(0,s); ctx.lineTo(-s*.65,0);
       ctx.closePath();
-      ctx.fillStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},${alpha * 0.4})`;
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
       ctx.fill(); ctx.stroke();
     }
     ctx.restore();
