@@ -1597,8 +1597,9 @@ async function loadUserInfo(){
   if(!aigram.isInAigram) return;
   myId = aigram.telegramId||'';
   try{
-    const r = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/get/info/by/telegram_id?telegram_id=${myId}`);
-    if(r?.data){ myName=r.data.name||''; myAvatar=r.data.head_url||''; }
+    const r = await callAigramAPI(`/note/telegram/user/get/info/by/telegram_id?telegram_id=${myId}`);
+    const ud = r?.data ?? r;
+    if(ud?.name){ myName=ud.name||''; myAvatar=ud.head_url||''; }
   }catch(_){}
 }
 
@@ -1607,7 +1608,7 @@ async function loadFriends(){
   const tid = aigram.telegramId; // use directly, don't depend on myId being set
   if(!tid) return;
   try{
-    const res = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/contact/list?telegram_id=${tid}`);
+    const res = await callAigramAPI(`/note/telegram/user/contact/list?telegram_id=${tid}`);
     const contacts = res?.data ?? res; // API wraps array in { retcode, msg, data: [...] }
     if(!Array.isArray(contacts) || !contacts.length) return;
     // Sanitize names: first word only, letters/digits/CJK, max 8 chars
@@ -1632,8 +1633,9 @@ async function fetchGlobalLB(){
 }
 
 async function fetchFriendsLB(){
-  const contacts = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/contact/list?telegram_id=${myId}`);
-  const ids=[myId,...(contacts||[]).map(c=>c.telegram_id)].join(',');
+  const res = await callAigramAPI(`/note/telegram/user/contact/list?telegram_id=${myId}`);
+  const contacts = Array.isArray(res) ? res : (res?.data ?? []);
+  const ids=[myId,...contacts.map(c=>c.telegram_id)].join(',');
   const r=await fetch(`${GAMES_API}/leaderboard?game_id=${GAME_ID}&telegram_ids=${ids}`);
   return (await r.json()).leaderboard||[];
 }
