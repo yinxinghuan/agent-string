@@ -1604,9 +1604,12 @@ async function loadUserInfo(){
 
 async function loadFriends(){
   if(!aigram.isInAigram) return;
+  const tid = aigram.telegramId; // use directly, don't depend on myId being set
+  if(!tid) return;
   try{
-    const contacts = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/contact/list?telegram_id=${myId}`);
-    if(!contacts?.length) return;
+    const res = await callAigramAPI(`${aigram.apiOrigin}/note/telegram/user/contact/list?telegram_id=${tid}`);
+    const contacts = res?.data ?? res; // API wraps array in { retcode, msg, data: [...] }
+    if(!Array.isArray(contacts) || !contacts.length) return;
     // Sanitize names: first word only, letters/digits/CJK, max 8 chars
     friendPool = contacts
       .map(c=>({ name:(c.name||'').split(/\s+/)[0].replace(/[^\w\u4e00-\u9fa5]/g,'').slice(0,8), telegram_id:c.telegram_id }))
