@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
+    <meta name="game-uuid" content="316c0d68-7da5-4d44-93ec-93628ed9350c" />
+
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>SIGNAL</title>
+<script src="./aigram-bridge.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=DM+Mono:wght@400;500&family=Fira+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Inconsolata:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Martian+Mono:wght@400&family=Roboto+Mono:wght@400;500&family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
@@ -169,10 +172,6 @@ body{border-radius:24px;overflow:hidden}
     <div class="ov-rule"></div>
     <div class="ov-bigtitle" style="font-size:clamp(30px,7vw,44px);letter-spacing:10px">RANK</div>
     <div class="ov-rule"></div>
-    <div id="lb-tabs">
-      <button class="lb-tab active" id="lb-tab-global" onpointerdown="switchLbTab('global')">GLOBAL</button>
-      <button class="lb-tab" id="lb-tab-friends" onpointerdown="switchLbTab('friends')">FRIENDS</button>
-    </div>
     <div id="lb-status"></div>
     <div id="lb-list"></div>
     <div class="ov-rule"></div>
@@ -1568,40 +1567,10 @@ function loop(t){
 // ─────────────────────────────────────────────────────────────────────────────
 //  LEADERBOARD
 // ─────────────────────────────────────────────────────────────────────────────
-const GAMES_API = 'https://games-api.xinghuan-yin.workers.dev';
-const GAME_ID   = 'agent-string';
-
-function getAigramContext(){
-  const p = new URLSearchParams(window.location.search);
-  const telegramId = p.get('telegram_id') ?? null;
-  const raw        = p.get('api_origin');
-  const apiOrigin  = raw ? decodeURIComponent(raw) : null;
-  return { telegramId, apiOrigin, isInAigram: !!(telegramId && apiOrigin) };
-}
-const aigram = getAigramContext();
-
-function _b64e(s){ return btoa(unescape(encodeURIComponent(s))); }
-function _b64d(s){ return decodeURIComponent(escape(atob(s))); }
-
-function callAigramAPI(url, method='GET', data=null){
-  return new Promise((resolve,reject)=>{
-    if(!aigram.isInAigram){ reject(new Error('not in aigram')); return; }
-    const rid = Math.random().toString(36).slice(2);
-    const msg = _b64e(JSON.stringify({ url, method, data, request_id:rid, emitter:window.location.origin }));
-    const timer = setTimeout(()=>{ window.removeEventListener('message',fn); reject(new Error('timeout')); }, 15000);
-    function fn(e){
-      if(typeof e.data!=='string'||!e.data.startsWith('callAPIResult-')) return;
-      try{
-        const r=JSON.parse(_b64d(e.data.slice('callAPIResult-'.length)));
-        if(r.request_id!==rid) return;
-        clearTimeout(timer); window.removeEventListener('message',fn);
-        r.success ? resolve(r.data) : reject(new Error(r.error));
-      }catch(_){}
-    }
-    window.addEventListener('message',fn);
-    window.parent.postMessage(`callAPI-${msg}`, aigram.apiOrigin);
-  });
-}
+// Talks to Aigram platform via window.Aigram (see aigram-bridge.js).
+const GAME_ID = 'agent-string';
+const aigram = window.Aigram;
+const callAigramAPI = aigram.callAigramAPI;
 
 let myId='', myName='', myAvatar='';
 let friendPool=[]; // [{name, telegram_id}] — loaded async, injected at game start
@@ -1632,40 +1601,32 @@ async function loadFriends(){
 }
 
 function submitScore(s){
-  if(!myId || s<=0) return;
-  fetch(`${GAMES_API}/score`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ game_id:GAME_ID, telegram_id:myId, name:myName, avatar_url:myAvatar, score:s })
-  }).catch(()=>{});
+  if(!aigram.canRank || s<=0) return;
+  callAigramAPI(
+    '/note/aigram/ai/game/rank/score/save',
+    'POST',
+    { session_id: aigram.gameUuid, score: s }
+  ).catch(()=>{});
 }
 
 async function fetchGlobalLB(){
-  const r=await fetch(`${GAMES_API}/leaderboard?game_id=${GAME_ID}&limit=50`);
-  return (await r.json()).leaderboard||[];
+  if(!aigram.canRank) return [];
+  try{
+    const r = await callAigramAPI(
+      `/note/aigram/ai/game/rank/score/list/by/session_id?session_id=${encodeURIComponent(aigram.gameUuid)}`
+    );
+    const rows = (r && Array.isArray(r.data)) ? r.data : (Array.isArray(r) ? r : []);
+    return rows.map(row=>({
+      telegram_id: String(row.user_id),
+      name: row.user_name,
+      avatar_url: row.head_url,
+      score: Number(row.score),
+      rank: row.rank,
+    }));
+  }catch(_){ return []; }
 }
 
-async function fetchFriendsLB(){
-  const res = await callAigramAPI(`/note/telegram/user/contact/list?telegram_id=${myId}`);
-  const contacts = Array.isArray(res) ? res : (res?.data ?? []);
-  const ids=[myId,...contacts.map(c=>c.telegram_id)].join(',');
-  const r=await fetch(`${GAMES_API}/leaderboard?game_id=${GAME_ID}&telegram_ids=${ids}`);
-  return (await r.json()).leaderboard||[];
-}
-
-let lbTab='global';
-
-function switchLbTab(tab){
-  lbTab=tab;
-  document.getElementById('lb-tab-global').classList.toggle('active',tab==='global');
-  document.getElementById('lb-tab-friends').classList.toggle('active',tab==='friends');
-  loadLB();
-}
-
-function openProfile(telegramId){
-  if(!aigram.isInAigram) return;
-  try{ window.parent.postMessage(`AW.PROFILE.OPEN-${btoa(JSON.stringify({id:telegramId}))}`, aigram.apiOrigin); }catch(_){}
-}
+function openProfile(telegramId){ aigram.openAigramProfile(telegramId); }
 
 function renderLBRows(entries){
   if(!entries.length){
@@ -1697,7 +1658,7 @@ async function loadLB(){
   document.getElementById('lb-list').innerHTML='';
   status.textContent=t('lb.loading');
   try{
-    const entries = lbTab==='friends' ? await fetchFriendsLB() : await fetchGlobalLB();
+    const entries = await fetchGlobalLB();
     renderLBRows(entries);
   }catch(_){
     status.textContent=t('lb.empty');
@@ -1706,11 +1667,6 @@ async function loadLB(){
 
 function showLeaderboard(){
   document.getElementById('lb-ov').classList.remove('gone');
-  // Show tabs only in Aigram context
-  document.getElementById('lb-tabs').style.display = aigram.isInAigram ? 'flex' : 'none';
-  lbTab='global';
-  document.getElementById('lb-tab-global').classList.add('active');
-  document.getElementById('lb-tab-friends').classList.remove('active');
   loadLB();
 }
 function hideLeaderboard(){ document.getElementById('lb-ov').classList.add('gone'); }

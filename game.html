@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>SIGNAL</title>
+<script src="./aigram-bridge.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=DM+Mono:wght@400;500&family=Fira+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Inconsolata:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Martian+Mono:wght@400&family=Roboto+Mono:wght@400;500&family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
@@ -38,6 +39,18 @@ body{border-radius:24px;overflow:hidden}
   background:rgba(20,12,5,.07);font-size:18px;cursor:pointer;
   touch-action:none;outline:none;-webkit-tap-highlight-color:transparent;}
 #s-rank-btn:active{background:rgba(20,12,5,.14);transform:scale(.9)}
+
+#resume-ov{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+  background:rgba(245,240,230,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  animation:resume-fade .25s ease-out}
+#resume-panel{width:min(88%,300px);text-align:center;animation:resume-pop .3s cubic-bezier(.34,1.4,.64,1)}
+#resume-icon{font-size:36px;margin-bottom:14px}
+#resume-title{font-size:14px;letter-spacing:4px;font-weight:700;color:rgba(20,12,5,.72);
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:6px}
+#resume-sub{font-size:11px;letter-spacing:2px;color:rgba(20,12,5,.32);
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-bottom:22px}
+@keyframes resume-fade{from{opacity:0}to{opacity:1}}
+@keyframes resume-pop{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
 #font-switcher{display:flex;align-items:center;gap:10px;margin-top:18px;cursor:pointer;
   -webkit-tap-highlight-color:transparent;touch-action:none}
 #font-switcher span{font-size:10px;letter-spacing:3px;color:rgba(20,12,5,.28)}
@@ -157,13 +170,21 @@ body{border-radius:24px;overflow:hidden}
     <div class="ov-bigtitle" style="font-size:clamp(30px,7vw,44px);letter-spacing:10px">RANK</div>
     <div class="ov-rule"></div>
     <div id="lb-tabs">
-      <button class="lb-tab active" id="lb-tab-global" onpointerdown="switchLbTab('global')">GLOBAL</button>
-      <button class="lb-tab" id="lb-tab-friends" onpointerdown="switchLbTab('friends')">FRIENDS</button>
     </div>
     <div id="lb-status"></div>
     <div id="lb-list"></div>
     <div class="ov-rule"></div>
     <button class="btn-ghost" id="lb-back" onpointerdown="hideLeaderboard()"></button>
+  </div>
+</div>
+
+<div id="resume-ov" style="display:none">
+  <div id="resume-panel">
+    <div id="resume-icon">💾</div>
+    <div id="resume-title"></div>
+    <div id="resume-sub"></div>
+    <button class="btn-main" id="resume-yes"></button>
+    <button class="btn-ghost" id="resume-no"></button>
   </div>
 </div>
 
@@ -208,6 +229,10 @@ const I18N={
     'end.streak':   n=>`streak ×${n}`,
     'end.combo':    n=>`combo ${n}/3`,
     'end.perfect':  'clean run',
+    'resume.title': 'CONTINUE?',
+    'resume.sub':   n=>`progress saved at L${n}`,
+    'resume.yes':   'C O N T I N U E',
+    'resume.no':    'N E W  G A M E',
   },
   zh:{
     'start.label':  '// SIGNAL · 语义信号',
@@ -239,6 +264,10 @@ const I18N={
     'end.streak':   n=>`连击 ×${n}`,
     'end.combo':    n=>`组合 ${n}/3`,
     'end.perfect':  '完美通过',
+    'resume.title': '继续游戏？',
+    'resume.sub':   n=>`已保存到第 ${n} 关`,
+    'resume.yes':   '继 续',
+    'resume.no':    '重 新 开 始',
   }
 };
 function t(key,n){ const v=I18N[locale][key]; return typeof v==='function'?v(n):v; }
@@ -1356,7 +1385,7 @@ function showEnd(){
   submitScore(score);
 }
 
-function nextLevel(){ currentLevel++; startGame(); }
+function nextLevel(){ currentLevel++; saveProgress(); startGame(); }
 function showLeaderboard(){ document.getElementById('lb-ov').classList.remove('gone'); }
 function hideLeaderboard(){ document.getElementById('lb-ov').classList.add('gone'); }
 
@@ -1520,6 +1549,43 @@ canvas.addEventListener('pointerup',    e=>{ delete pointers[e.pointerId]; });
 canvas.addEventListener('pointercancel',e=>{ delete pointers[e.pointerId]; });
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  SAVE / RESUME
+// ─────────────────────────────────────────────────────────────────────────────
+const SAVE_KEY = 'signal_v1_save';
+
+function saveProgress(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify({ level: currentLevel })); }catch{}
+}
+function loadSave(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    if(typeof data.level !== 'number' || data.level <= 0) return null;
+    return data;
+  }catch{ return null; }
+}
+function eraseSave(){ localStorage.removeItem(SAVE_KEY); }
+
+function showResumeDialog(data){
+  const ov = document.getElementById('resume-ov');
+  document.getElementById('resume-title').textContent = t('resume.title');
+  document.getElementById('resume-sub').textContent   = t('resume.sub', data.level + 1);
+  document.getElementById('resume-yes').textContent   = t('resume.yes');
+  document.getElementById('resume-no').textContent    = t('resume.no');
+  ov.style.display = 'flex';
+  document.getElementById('resume-yes').addEventListener('pointerdown', ()=>{
+    ov.style.display = 'none';
+    currentLevel = data.level;
+    startGame();
+  }, {once:true});
+  document.getElementById('resume-no').addEventListener('pointerdown', ()=>{
+    eraseSave();
+    ov.style.display = 'none';
+  }, {once:true});
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  START
 // ─────────────────────────────────────────────────────────────────────────────
 function startGame(){
@@ -1555,40 +1621,10 @@ function loop(t){
 // ─────────────────────────────────────────────────────────────────────────────
 //  LEADERBOARD
 // ─────────────────────────────────────────────────────────────────────────────
-const GAMES_API = 'https://games-api.xinghuan-yin.workers.dev';
-const GAME_ID   = 'agent-string';
-
-function getAigramContext(){
-  const p = new URLSearchParams(window.location.search);
-  const telegramId = p.get('telegram_id') ?? null;
-  const raw        = p.get('api_origin');
-  const apiOrigin  = raw ? decodeURIComponent(raw) : null;
-  return { telegramId, apiOrigin, isInAigram: !!(telegramId && apiOrigin) };
-}
-const aigram = getAigramContext();
-
-function _b64e(s){ return btoa(unescape(encodeURIComponent(s))); }
-function _b64d(s){ return decodeURIComponent(escape(atob(s))); }
-
-function callAigramAPI(url, method='GET', data=null){
-  return new Promise((resolve,reject)=>{
-    if(!aigram.isInAigram){ reject(new Error('not in aigram')); return; }
-    const rid = Math.random().toString(36).slice(2);
-    const msg = _b64e(JSON.stringify({ url, method, data, request_id:rid, emitter:window.location.origin }));
-    const timer = setTimeout(()=>{ window.removeEventListener('message',fn); reject(new Error('timeout')); }, 15000);
-    function fn(e){
-      if(typeof e.data!=='string'||!e.data.startsWith('callAPIResult-')) return;
-      try{
-        const r=JSON.parse(_b64d(e.data.slice('callAPIResult-'.length)));
-        if(r.request_id!==rid) return;
-        clearTimeout(timer); window.removeEventListener('message',fn);
-        r.success ? resolve(r.data) : reject(new Error(r.error));
-      }catch(_){}
-    }
-    window.addEventListener('message',fn);
-    window.parent.postMessage(`callAPI-${msg}`, aigram.apiOrigin);
-  });
-}
+// Talks to Aigram platform via window.Aigram (see aigram-bridge.js).
+const GAME_ID = 'agent-string';
+const aigram = window.Aigram;
+const callAigramAPI = aigram.callAigramAPI;
 
 let myId='', myName='', myAvatar='';
 let friendPool=[]; // [{name, telegram_id}] — loaded async, injected at game start
@@ -1619,40 +1655,32 @@ async function loadFriends(){
 }
 
 function submitScore(s){
-  if(!myId || s<=0) return;
-  fetch(`${GAMES_API}/score`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ game_id:GAME_ID, telegram_id:myId, name:myName, avatar_url:myAvatar, score:s })
-  }).catch(()=>{});
+  if(!aigram.canRank || s<=0) return;
+  callAigramAPI(
+    '/note/aigram/ai/game/rank/score/save',
+    'POST',
+    { session_id: aigram.gameUuid, score: s }
+  ).catch(()=>{});
 }
 
 async function fetchGlobalLB(){
-  const r=await fetch(`${GAMES_API}/leaderboard?game_id=${GAME_ID}&limit=50`);
-  return (await r.json()).leaderboard||[];
+  if(!aigram.canRank) return [];
+  try{
+    const r = await callAigramAPI(
+      `/note/aigram/ai/game/rank/score/list/by/session_id?session_id=${encodeURIComponent(aigram.gameUuid)}`
+    );
+    const rows = (r && Array.isArray(r.data)) ? r.data : (Array.isArray(r) ? r : []);
+    return rows.map(row=>({
+      telegram_id: String(row.user_id),
+      name: row.user_name,
+      avatar_url: row.head_url,
+      score: Number(row.score),
+      rank: row.rank,
+    }));
+  }catch(_){ return []; }
 }
 
-async function fetchFriendsLB(){
-  const res = await callAigramAPI(`/note/telegram/user/contact/list?telegram_id=${myId}`);
-  const contacts = Array.isArray(res) ? res : (res?.data ?? []);
-  const ids=[myId,...contacts.map(c=>c.telegram_id)].join(',');
-  const r=await fetch(`${GAMES_API}/leaderboard?game_id=${GAME_ID}&telegram_ids=${ids}`);
-  return (await r.json()).leaderboard||[];
-}
-
-let lbTab='global';
-
-function switchLbTab(tab){
-  lbTab=tab;
-  document.getElementById('lb-tab-global').classList.toggle('active',tab==='global');
-  document.getElementById('lb-tab-friends').classList.toggle('active',tab==='friends');
-  loadLB();
-}
-
-function openProfile(telegramId){
-  if(!aigram.isInAigram) return;
-  try{ window.parent.postMessage(`AW.PROFILE.OPEN-${btoa(JSON.stringify({id:telegramId}))}`, aigram.apiOrigin); }catch(_){}
-}
+function openProfile(telegramId){ aigram.openAigramProfile(telegramId); }
 
 function renderLBRows(entries){
   if(!entries.length){
@@ -1684,7 +1712,7 @@ async function loadLB(){
   document.getElementById('lb-list').innerHTML='';
   status.textContent=t('lb.loading');
   try{
-    const entries = lbTab==='friends' ? await fetchFriendsLB() : await fetchGlobalLB();
+    const entries = await fetchGlobalLB();
     renderLBRows(entries);
   }catch(_){
     status.textContent=t('lb.empty');
@@ -1693,11 +1721,6 @@ async function loadLB(){
 
 function showLeaderboard(){
   document.getElementById('lb-ov').classList.remove('gone');
-  // Show tabs only in Aigram context
-  document.getElementById('lb-tabs').style.display = aigram.isInAigram ? 'flex' : 'none';
-  lbTab='global';
-  document.getElementById('lb-tab-global').classList.add('active');
-  document.getElementById('lb-tab-friends').classList.remove('active');
   loadLB();
 }
 function hideLeaderboard(){ document.getElementById('lb-ov').classList.add('gone'); }
@@ -1713,8 +1736,8 @@ const FRIEND_TEMPLATES = [
 
 function buildFriendInjection(){
   if(!friendPool.length){ _injectedPassage=null; _injectedGold=null; return; }
-  // Pick up to 8 random friends
-  const picked = [...friendPool].sort(()=>Math.random()-0.5).slice(0,8);
+  // Pick up to 4 random friends
+  const picked = [...friendPool].sort(()=>Math.random()-0.5).slice(0,4);
   const baseGold = lvCFG().gold;
   const basePassage = lvCFG().passage;
   // Build extra passage lines
@@ -1742,6 +1765,20 @@ loadFriends();
 renderI18n();
 resize(); layout();
 requestAnimationFrame(loop);
+
+// ── Check for saved progress ─────────────────────────────────────────────────
+(function(){
+  const saved = loadSave();
+  if(saved) showResumeDialog(saved);
+})();
+
+// ── Save on app hide / close ─────────────────────────────────────────────────
+window.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='hidden' && phase==='explore') saveProgress();
+});
+window.addEventListener('pagehide', ()=>{
+  if(phase==='explore') saveProgress();
+});
 </script>
 </body>
 </html>
