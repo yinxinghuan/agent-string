@@ -1366,6 +1366,7 @@ function showEnd(){
   document.getElementById('e-next').style.display = passed ? '' : 'none';
   document.getElementById('end-ov').classList.remove('gone');
   submitScore(score);
+  trySendBeatNotify(score);
 }
 
 function nextLevel(){ currentLevel++; startGame(); }
@@ -1546,6 +1547,7 @@ function startGame(){
   surgeState='idle'; surgeTimer=0;
   signalHealth=4; trapFontTimer=0;
   score=0; lapCount=0;
+  snapshotPreRunBest();
   buildFriendInjection();
   // First surge delayed — give player time to settle in
   surgeCountdown = (lvCFG().surgeInterval || 99) * (0.6 + Math.random() * 0.4);
@@ -1607,6 +1609,52 @@ function submitScore(s){
     'POST',
     { session_id: aigram.gameUuid, score: s }
   ).catch(()=>{});
+}
+
+// ── Leaderboard-beat 1:1 notify (score_beat) — see aigram-notify skill ────
+let preRunBest = 0;
+function snapshotPreRunBest(){
+  if(!aigram.canRank || !aigram.telegramId){ preRunBest = 0; return; }
+  callAigramAPI(
+    '/note/aigram/ai/game/rank/score/list/by/session_id?session_id=' + encodeURIComponent(aigram.gameUuid), 'GET')
+    .then(res => {
+      const rows = Array.isArray(res) ? res : (res && res.data) || [];
+      const meId = String(aigram.telegramId);
+      const me = rows.find(r => String(r.user_id) === meId);
+      preRunBest = me ? Number(me.score) || 0 : 0;
+    }).catch(() => { preRunBest = 0; });
+}
+async function trySendBeatNotify(myScore){
+  if(!aigram.canRank || !aigram.telegramId) return;
+  if(myScore <= preRunBest) return;
+  try {
+    const res = await callAigramAPI(
+      '/note/aigram/ai/game/rank/score/list/by/session_id?session_id=' + encodeURIComponent(aigram.gameUuid), 'GET');
+    const rows = Array.isArray(res) ? res : (res && res.data) || [];
+    const meId = String(aigram.telegramId);
+    const beaten = rows
+      .filter(r => String(r.user_id) !== meId)
+      .map(r => ({ id: String(r.user_id), score: Number(r.score) || 0 }))
+      .filter(r => r.score < myScore && r.score > preRunBest)
+      .sort((a, b) => b.score - a.score)[0];
+    if (!beaten) return;
+    aigram.postAigramAPI('/note/aigram/ai/game/record/play', {
+      session_id: aigram.gameUuid,
+      event: 'score_beat',
+      config_json: { actions: [{
+        type: 'notify',
+        target_user_id: beaten.id,
+        image: {
+          ref_url: 'https://yinxinghuan.github.io/games/posters/agent-string.png',
+          prompt: 'A glowing semantic graph of connected words floating on a dark canvas.',
+        },
+        message: {
+          template: '{sender_name} just out-strung you — ' + Math.round(myScore) + ' on Agent String.',
+          variables: ['sender_name'],
+        },
+      }] },
+    });
+  } catch (_) {}
 }
 
 async function fetchGlobalLB(){
