@@ -112,6 +112,8 @@ body{border-radius:24px;overflow:hidden}
 .lb-me .lb-name,.lb-me .lb-score{color:rgba(20,12,5,.90);font-weight:500}
 #lb-status{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;
   letter-spacing:3px;color:rgba(20,12,5,.22);text-align:center;padding:22px 0}
+.lb-download{display:inline-flex;align-items:center;justify-content:center;min-height:38px;margin-top:12px;padding:0 14px;border-radius:999px;border:1px solid rgba(20,12,5,.18);background:rgba(20,12,5,.06);color:rgba(20,12,5,.72);text-decoration:none;font-weight:600;letter-spacing:1px;-webkit-tap-highlight-color:transparent}
+.lb-download:active{transform:scale(.97);background:rgba(20,12,5,.1)}
 </style>
 </head>
 <body>
@@ -208,6 +210,10 @@ const I18N={
     'lb.label':     '// RANK · leaderboard',
     'lb.empty':     '— no data yet —',
     'lb.loading':   '...',
+    'lb.openAlterU':'在 AlterU 中打开即可查看排行榜',
+    'lb.download':  '下载 AlterU',
+    'lb.openAlterU':'Open in AlterU to view the leaderboard.',
+    'lb.download':  'Get AlterU on the App Store',
     'lb.back':      '← B A C K',
     'toast.found':  '// found',
     'toast.trap':   '// signal error',
@@ -1623,6 +1629,7 @@ function loop(t){
 // ─────────────────────────────────────────────────────────────────────────────
 // Talks to Aigram platform via window.Aigram (see aigram-bridge.js).
 const GAME_ID = 'agent-string';
+const ALTERU_APP_URL = 'https://apps.apple.com/app/id6769646546';
 const aigram = window.Aigram;
 const callAigramAPI = aigram.callAigramAPI;
 
@@ -1697,7 +1704,7 @@ function renderLBRows(entries){
     const av=e.avatar_url
       ?`<img src="${e.avatar_url}" alt="" onerror="this.style.display='none'">${init}`
       :init;
-    const clickable=aigram.isInAigram?`style="cursor:pointer" onpointerdown="openProfile('${e.telegram_id}')"` :'';
+    const clickable=aigram.isInAigram?`style="cursor:pointer" onclick="openProfile('${e.telegram_id}')"` :'';
     return `<div class="lb-row${isMe?' lb-me':''}" ${clickable}>
       <div class="lb-rank">${rank}</div>
       <div class="lb-av">${av}</div>
@@ -1709,7 +1716,12 @@ function renderLBRows(entries){
 
 async function loadLB(){
   const status=document.getElementById('lb-status');
-  document.getElementById('lb-list').innerHTML='';
+  const list=document.getElementById('lb-list');
+  list.innerHTML='';
+  if(!aigram.isInAigram){
+    status.innerHTML = `${t('lb.openAlterU')}<br><a class="lb-download" href="${ALTERU_APP_URL}" target="_blank" rel="noopener noreferrer">${t('lb.download')}</a>`;
+    return;
+  }
   status.textContent=t('lb.loading');
   try{
     const entries = await fetchGlobalLB();
