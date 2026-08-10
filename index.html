@@ -1622,7 +1622,7 @@ function submitScore(s){
 // ── Leaderboard-beat 1:1 notify (score_beat) — see aigram-notify skill ────
 let preRunBest = 0;
 function snapshotPreRunBest(){
-  if(!aigram.canRank || !aigram.telegramId){ preRunBest = 0; return; }
+  if(!aigram.isInAigram || !aigram.telegramId){ preRunBest = 0; return; }
   callAigramAPI(
     '/note/aigram/ai/game/rank/score/list/by/session_id?session_id=' + encodeURIComponent(aigram.gameUuid), 'GET')
     .then(res => {
