@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
+    <script src="./alteru-storage-scope.js" data-alteru-storage-scope data-game-storage-id="316c0d68-7da5-4d44-93ec-93628ed9350c"></script>
     <meta name="game-uuid" content="316c0d68-7da5-4d44-93ec-93628ed9350c" />
 
 <meta charset="UTF-8"/>
@@ -187,7 +188,7 @@ body{border-radius:24px;overflow:hidden}
 //  I18N
 // ─────────────────────────────────────────────────────────────────────────────
 function detectLocale(){
-  const ov=localStorage.getItem('game_locale');
+  const ov=alteruLocalStorage.getItem('game_locale');
   if(ov==='en'||ov==='zh') return ov;
   return navigator.language.toLowerCase().startsWith('zh')?'zh':'en';
 }
@@ -730,7 +731,7 @@ const FONTS = [
   { name:'Martian Mono',    stack:`'Martian Mono',monospace` },
   { name:'SF Mono',         stack:`ui-monospace,'SF Mono',Menlo,Consolas,monospace` },
 ];
-let fontIdx = parseInt(localStorage.getItem('signal_font')||'2');
+let fontIdx = parseInt(alteruLocalStorage.getItem('signal_font')||'2');
 
 // ── Signal health font system ─────────────────────────────────────────────────
 // signalHealth: 4=clean → 0=chaos. Degrades on trap hit, repairs on streak.
@@ -760,7 +761,7 @@ function applyFont(){
 }
 function cycleFont(){
   fontIdx = (fontIdx + 1) % FONTS.length;
-  localStorage.setItem('signal_font', fontIdx);
+  alteruLocalStorage.setItem('signal_font', fontIdx);
   applyFont();
 }
 const TOP       = 90;
